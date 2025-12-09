@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>千紗 - 今日のおすすめ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  
+<h1>千紗 - 今日のおすすめ</h1>
+<div id="today-summary" class="today-summary"></div>
+
+
+<div style="margin-bottom: 8px;">
+  <button id="reload">更新</button>
+
+  <label for="project-filter" style="margin-left: 12px;">
+    プロジェクト:
+  </label>
+  <select id="project-filter">
+    <option value="">すべて</option>
+    <!-- 選択肢はJS側で自動で増える -->
+  </select>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>タスク</th>
+      <th>プロジェクト</th>
+      <th>期限</th>
+      <th>スコア</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody id="task-body"></tbody>
+</table>
+
+<!-- 日誌インポート欄 -->
+<section style="margin-top: 24px;">
+  <h2>日誌インポート</h2>
+  <p>state_YYYY-MM-DD.json をファイルとして選ぶか、直接JSONを貼り付けて「インポート」を押してください。</p>
+
+  <!-- ファイル選択 -->
+  <div style="margin-bottom: 8px;">
+    <input type="file" id="state-file" accept=".json,application/json">
+  </div>
+
+  <!-- 手動ペースト用（予備） -->
+  <textarea id="state-json-input" rows="8" style="width: 100%;"></textarea>
+
+  <button id="import-state-btn" style="margin-top: 8px;">日誌をインポート</button>
+  <span id="import-state-status" style="margin-left: 8px;"></span>
+</section>
+
+  <!-- JS は外部ファイルから読み込む -->
+  <script src="/main.js"></script>
+
+</body>
+</html>

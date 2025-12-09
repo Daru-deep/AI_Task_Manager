@@ -1,0 +1,75 @@
+body {
+  font-family: system-ui, sans-serif;
+  background: #f6f6f8;
+  margin: 1rem auto;
+  max-width: 900px;
+  padding: 0 0.5rem;
+}
+
+h1 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.today-summary {
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+
+#reload {
+  background: #2c7be5;
+  color: #fff;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+#reload:hover {
+  background: #1b5fc8;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.8rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-size: 0.85rem;
+}
+
+th,
+td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  vertical-align: top;
+}
+
+th {
+  background: #f0f2f5;
+  text-align: left;
+  font-weight: 600;
+}
+
+td button {
+  background: #28a745;
+  color: #fff;
+  border: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+td button:hover {
+  background: #1e7e34;
+}
+
+.reason {
+  color: #666;
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+}
