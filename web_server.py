@@ -1,5 +1,8 @@
 from flask import Flask, jsonify, send_from_directory, request
+from pathlib import Path
+import json
 import app
+
 
 
 # web/ フォルダを静的ファイル置き場にする
@@ -20,21 +23,110 @@ def api_today():
 @server.post("/api/import_state")
 def api_import_state():
     """
-    日誌JSONを受け取り、state更新＋new_tasks追加を行う。
-    成功したら更新後の今日のおすすめを返す。
+    日誌JSON(state_xxx.json相当)をブラウザから受け取り、
+    import/state_YYYY-MM-DD.json に保存してから
+    app.import_state_log() で取り込む。
     """
+
+    # 1. JSONボディを受け取る
     data = request.get_json(silent=True)
+    print("[api_import_state] 受信:", type(data), data)  # デバッグ用
+
     if not isinstance(data, dict):
-        return jsonify({"success": False, "error": "invalid json"}), 400
+        return jsonify({
+            "success": False,
+            "error": "JSON body が不正です。"
+        }), 400
 
+    # 2. 日付を決定（JSON内の date があればそれを使う）
+    date_str = data.get("date")
+    if not isinstance(date_str, str) or not date_str:
+        from datetime import date
+        date_str = date.today().isoformat()
+
+    # 3. import/ フォルダに state_YYYY-MM-DD.json として保存
+    import_dir = Path("import")
+    import_dir.mkdir(exist_ok=True)
+
+    dst = import_dir / f"state_{date_str}.json"
     try:
-        app.import_state_data(data)
+        dst.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+        print(f"[api_import_state] 保存完了: {dst}")
     except Exception as e:
-        print(f"[エラー] 日誌インポートに失敗: {e}")
-        return jsonify({"success": False, "error": "import failed"}), 500
+        print(f"[エラー] 日誌ファイルの保存に失敗: {e}")
+        return jsonify({
+            "success": False,
+            "error": "日誌ファイルの保存に失敗しました。"
+        }), 500
 
+    # 4. 既存ロジック(app.import_state_log)を呼び出し
+    try:
+        print(f"[api_import_state] import_state_log 呼び出し: {dst}")
+        app.import_state_log(str(dst))
+    except Exception as e:
+        print(f"[エラー] import_state_log 実行中に例外: {e}")
+        return jsonify({
+            "success": False,
+            "error": "日誌インポート処理中にエラーが発生しました。"
+        }), 500
+
+    # 5. 取り込み後の「今日のおすすめ」も返しておく
+    try:
+        recs = app.get_today_recommendation()
+    except Exception as e:
+        print(f"[警告] get_today_recommendation で例外: {e}")
+        recs = []
+
+    return jsonify({
+        "success": True,
+        "data": recs
+    })
+
+@server.post("/api/import_state_pasted")
+def api_import_state_pasted():
+    """
+    GPT からコピペした JSON テキストを受け取って、
+    app.import_state_data() で state を更新するAPI。
+    body: { "raw": "<ここに JSON テキスト>" }
+    """
+    body = request.get_json(silent=True) or {}
+    raw = body.get("raw")
+
+    if not isinstance(raw, str) or not raw.strip():
+        return jsonify({
+            "success": False,
+            "error": "raw が空です。GPTから出たJSONをそのまま貼り付けてください。"
+        }), 400
+
+    # JSONとしてパースできるか確認
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        return jsonify({
+            "success": False,
+            "error": f"JSONとして読み込めませんでした: {e}"
+        }), 400
+
+    # 既存のロジックを流用：dictを直接渡す
+    try:
+        app.import_state_data(parsed)
+    except Exception as e:
+        print(f"[エラー] import_state_data で例外: {e}")
+        return jsonify({
+            "success": False,
+            "error": "import_state_data 実行中にエラーが発生しました。"
+        }), 500
+
+    # 取り込み後の今日のおすすめも返しておく
     recs = app.get_today_recommendation()
-    return jsonify({"success": True, "data": recs})
+    return jsonify({
+        "success": True,
+        "data": recs
+    })
+
 
 
 @server.post("/api/tasks/done")
@@ -89,3 +181,6 @@ if __name__ == "__main__":
     DEBUG = True
     
     server.run(debug=DEBUG, host=HOST, port=PORT)
+    
+    
+    

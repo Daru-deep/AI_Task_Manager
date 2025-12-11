@@ -1,6 +1,6 @@
  // 今日の日付をセットする関数
 function updateTodaySummary() {
-  const el = document.getElementById("today-summary");
+  const el = document.getElementById("today-date");
   if (!el) return;
 
   const today = new Date();
@@ -165,16 +165,17 @@ if (due) {
 
 // 日誌インポート（ファイル or テキスト）
 async function importState() {
-  const status = document.getElementById("import-state-status");
+  // const status = document.getElementById("import-state-status");
+  const status = document.getElementById("import-result");  // ← HTMLに合わせる
   if (status) status.textContent = "";
 
   const fileInput = document.getElementById("state-file");
-  const textArea = document.getElementById("state-json-input");
+  // const textArea = document.getElementById("state-json-input");
+  const textArea = document.getElementById("state-text");   // ← HTMLに合わせる
 
   let data = null;
 
-  // ① ファイルが選ばれている場合はファイルを読む
-  const file =
+const file =
     fileInput && fileInput.files && fileInput.files.length > 0
       ? fileInput.files[0]
       : null;
@@ -188,7 +189,7 @@ async function importState() {
       return;
     }
   } else if (textArea) {
-    // ② ファイル未選択ならテキストエリアから読む
+
     const raw = (textArea.value || "").trim();
     if (!raw) {
       if (status) status.textContent = "ファイルを選ぶか、JSONを貼り付けてください。";
@@ -221,24 +222,87 @@ async function importState() {
   await loadToday();
 }
 
+
 // DOM が出来てからイベント登録する
 document.addEventListener("DOMContentLoaded", () => {
-  const reloadBtn = document.getElementById("reload");
+  // 「今日のおすすめ再計算」ボタン
+  const reloadBtn = document.getElementById("btn-refresh-today");
   if (reloadBtn) {
     reloadBtn.addEventListener("click", loadToday);
   }
 
-  const importBtn = document.getElementById("import-state-btn");
-  if (importBtn) {
-    importBtn.addEventListener("click", importState);
+  // 日誌インポート（ペーストボタン）
+  const importTextBtn = document.getElementById("btn-import-text");
+  if (importTextBtn) {
+    importTextBtn.addEventListener("click", importState);
   }
 
+  // 日誌インポート（ファイルボタン）
+  const importFileBtn = document.getElementById("btn-import");
+  if (importFileBtn) {
+    importFileBtn.addEventListener("click", importState);
+  }
+
+  // プロジェクトフィルタは、今のHTMLには無いのであってもなくてもOK
   const projectSelect = document.getElementById("project-filter");
   if (projectSelect) {
     projectSelect.addEventListener("change", applyFilterAndRender);
   }
+
   // 初回表示
   updateTodaySummary();
   // 初回読み込み
   loadToday();
 });
+
+
+// --- 画面切り替えナビ（枠だけ） ---
+
+function activateView(viewId, tabId) {
+  document.querySelectorAll(".vg-view").forEach(v => {
+    v.classList.remove("vg-view-active");
+  });
+  const view = document.getElementById(viewId);
+  if (view) view.classList.add("vg-view-active");
+
+  document.querySelectorAll(".vg-tab").forEach(t => {
+    t.classList.remove("vg-tab-active");
+  });
+  const tab = document.getElementById(tabId);
+  if (tab) tab.classList.add("vg-tab-active");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  // ここは今まで通り
+  if (typeof loadToday === "function") {
+    loadToday();
+  }
+
+  const navToday = document.getElementById("nav-today");
+  const navAll = document.getElementById("nav-all");
+  const navProjects = document.getElementById("nav-projects");
+  const navImport = document.getElementById("nav-import");
+
+  if (navToday) {
+    navToday.addEventListener("click", () => {
+      activateView("view-today", "nav-today");
+      if (typeof loadToday === "function") loadToday();
+    });
+  }
+  if (navAll) {
+    navAll.addEventListener("click", () => {
+      activateView("view-all", "nav-all");
+    });
+  }
+  if (navProjects) {
+    navProjects.addEventListener("click", () => {
+      activateView("view-projects", "nav-projects");
+    });
+  }
+  if (navImport) {
+    navImport.addEventListener("click", () => {
+      activateView("view-import", "nav-import");
+    });
+  }
+});
+
