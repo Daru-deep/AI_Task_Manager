@@ -518,6 +518,72 @@ def load_state():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
 
+def get_projects_summary() -> list[dict[str, Any]]:
+    """
+    プロジェクトごとの進捗状況を集計して返す
+    """
+    tasks = load_tasks()
+    projects_data = load_projects() # storage.py にある前提
+    
+    # プロジェクトごとの集計用辞書
+    # key: project_id
+    summary = {}
+
+    # 1. プロジェクト定義をロードして枠を作る
+    # projects_data が {"prj_a": {...}, "prj_b": {...}} の形だと仮定
+    for pid, info in projects_data.items():
+        summary[pid] = {
+            "id": pid,
+            "name": info.get("name", pid),
+            "description": info.get("description", ""),
+            "total": 0,
+            "done": 0,
+        }
+
+    # "default" や未定義プロジェクト用も考慮
+    if "default" not in summary:
+        summary["default"] = {
+            "id": "default",
+            "name": "デフォルト",
+            "description": "プロジェクト未割り当てのタスク",
+            "total": 0,
+            "done": 0
+        }
+
+    # 2. タスクを集計
+    for t in tasks:
+        pid = t.get("project", "default")
+        
+        # もし projects.json にない未知のプロジェクトIDがタスクにあった場合
+        if pid not in summary:
+            summary[pid] = {
+                "id": pid,
+                "name": pid,
+                "description": "未定義プロジェクト",
+                "total": 0,
+                "done": 0
+            }
+            
+        summary[pid]["total"] += 1
+        if t.get("status") == "done":
+            summary[pid]["done"] += 1
+
+    # 3. リストに変換して進捗率を計算
+    results = []
+    for pid, data in summary.items():
+        total = data["total"]
+        done = data["done"]
+        # タスクが0個なら進捗0%
+        progress = int((done / total) * 100) if total > 0 else 0
+        
+        data["progress"] = progress
+        results.append(data)
+
+    # 進捗が高い順、あるいはID順に並べ替え（お好みで）
+    results.sort(key=lambda x: x["id"])
+    
+    return results
+
 
 
 # === エントリポイント ===

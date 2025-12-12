@@ -93,6 +93,7 @@ function setupTabButtons() {
   if (navProjects) {
     navProjects.addEventListener("click", () => {
       activateView("view-projects", "nav-projects");
+      loadProjects();
     });
   }
 

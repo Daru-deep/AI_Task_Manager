@@ -192,6 +192,16 @@ def style_css():
 def main_js():
     return send_from_directory("web", "main.js")
 
+@server.get("/api/projects")
+def api_projects_list():
+    """プロジェクト一覧と進捗を返す"""
+    try:
+        data = app.get_projects_summary()
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        print(f"[エラー] プロジェクト一覧取得失敗: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == "__main__":
     # ===== 接続設定 =====
     # 自分のPCからのみ: host="127.0.0.1"

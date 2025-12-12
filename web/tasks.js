@@ -83,16 +83,31 @@ function renderTasks(tasks) {
   // テーブルを空にする
   tbody.innerHTML = "";
 
+  // ===== 上位3件に制限 =====
+  const displayTasks = tasks.slice(0, 3);
+  
+  // 全件数が3件超えている場合は情報を表示
+  if (tasks.length > 3) {
+    const infoRow = document.createElement("tr");
+    infoRow.innerHTML = `
+      <td colspan="8" style="text-align:center; background:rgba(255,105,180,0.15); padding:10px; font-size:12px; color:#ffccff;">
+        💫 全${tasks.length}件中、上位3件を表示しています
+      </td>
+    `;
+    tbody.appendChild(infoRow);
+  }
+  // =======================
+
   // タスクが0件なら「タスクなし」と表示
-  if (tasks.length === 0) {
+  if (displayTasks.length === 0) {
     const tr = document.createElement("tr");
     tr.innerHTML = '<td colspan="8" style="text-align:center; padding:20px;">タスクがありません</td>';
     tbody.appendChild(tr);
     return;
   }
 
-  // 各タスクを1行ずつ追加
-  tasks.forEach(task => {
+  // 各タスクを1行ずつ追加（3件まで）
+  displayTasks.forEach(task => {
     const row = createTaskRow(task);
     tbody.appendChild(row);
   });

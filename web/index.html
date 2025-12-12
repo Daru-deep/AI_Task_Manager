@@ -11,6 +11,7 @@
   <script src="/web/tasks.js" defer></script>
   <script src="/web/state.js" defer></script>
   <script src="/web/import.js" defer></script>
+  <script src="/web/projects.js" defer></script>
   <script src="/web/main.js" defer></script>
 </head>
 
@@ -140,9 +141,10 @@
           <!-- プロジェクトビュー（枠だけ） -->
           <section id="view-projects" class="vg-view">
             <div class="vg-view-header">
-              <h1>プロジェクトビュー</h1>
-              <p class="vg-view-note">※ v0.5 以降で実装予定。</p>
+              <h1>プロジェクト進捗</h1>
+              <button id="btn-refresh-projects" class="vg-btn" onclick="loadProjects()">更新</button>
             </div>
+            <div id="project-list"></div>
           </section>
 
           <!-- 日誌インポート -->
