@@ -5,6 +5,13 @@
   <title>千紗 - 今日のおすすめ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/style.css">
+  
+  <!-- JSファイルを順番に読み込む（この順番が重要！） -->
+  <script src="/web/chisa.js" defer></script>
+  <script src="/web/tasks.js" defer></script>
+  <script src="/web/state.js" defer></script>
+  <script src="/web/import.js" defer></script>
+  <script src="/web/main.js" defer></script>
 </head>
 
 <body>
@@ -34,6 +41,7 @@
         <!-- タブ風ナビ（ボタンIDはJSで使いやすいように） -->
         <div class="vg-panel-tabs">
           <button id="nav-today" class="vg-tab vg-tab-active">今日のおすすめ</button>
+          <button id="nav-state" class="vg-tab">今日のステータス</button>
           <button id="nav-all" class="vg-tab">全タスク</button>
           <button id="nav-projects" class="vg-tab">プロジェクト</button>
           <button id="nav-import" class="vg-tab">日誌インポート</button>
@@ -70,6 +78,56 @@
               </table>
             </div>
           </section>
+
+          <section id="view-state" class="vg-view">
+  <div class="vg-head">
+    <h2>今日のステータス</h2>
+    <button id="btn-refresh-state" class="vg-btn">更新</button>
+  </div>
+
+  <div class="vg-grid">
+    <div class="vg-card">
+      <div class="vg-card-title">体調</div>
+      <div class="vg-big" id="st-physical">-</div>
+      <div class="vg-sub" id="st-physical-note"></div>
+    </div>
+
+    <div class="vg-card">
+      <div class="vg-card-title">メンタル</div>
+      <div class="vg-big" id="st-mental">-</div>
+      <div class="vg-sub" id="st-mental-note"></div>
+    </div>
+
+    <div class="vg-card">
+      <div class="vg-card-title">集中</div>
+      <div class="vg-big" id="st-focus">-</div>
+      <div class="vg-sub" id="st-focus-note"></div>
+    </div>
+
+    <div class="vg-card">
+      <div class="vg-card-title">今日の制約</div>
+      <ul class="vg-list" id="st-constraints"></ul>
+    </div>
+
+    <div class="vg-card">
+      <div class="vg-card-title">今日やりたいこと</div>
+      <ul class="vg-list" id="st-goals"></ul>
+    </div>
+
+    <div class="vg-card">
+      <div class="vg-card-title">最終更新</div>
+      <div class="vg-sub" id="st-updated-at">-</div>
+    </div>
+  </div>
+
+  <!-- デバッグ用（普段は非表示でOK） -->
+  <details class="vg-debug">
+    <summary>raw state.json</summary>
+    <pre id="state-raw"></pre>
+  </details>
+</section>
+
+
 
           <!-- 全タスク（枠だけ） -->
           <section id="view-all" class="vg-view">
@@ -129,14 +187,13 @@
       </div>
     </div>
 
+
     <!-- 一番下：ステータスバー -->
     <footer class="vg-status">
       <span id="status-text">Ready</span>
       <span id="sync-info"></span>
     </footer>
   </div>
-
-  <script src="/web/main.js"></script>
 </body>
 
 

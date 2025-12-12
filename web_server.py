@@ -20,6 +20,26 @@ def api_today():
         # エラー時は空配列を返す（フロント側で「タスクなし」として扱える）
         return jsonify([]), 500
 
+@server.get("/api/state")
+def api_state_get():
+    try:
+        # state.jsonを直接読み込む
+        from pathlib import Path
+        import json
+        
+        state_path = Path("data/state.json")
+        if not state_path.exists():
+            return jsonify({"success": False, "error": "state.jsonが見つかりません"}), 404
+        
+        with open(state_path, "r", encoding="utf-8") as f:
+            state_data = json.load(f)
+        
+        return jsonify({"success": True, "data": state_data})
+    except Exception as e:
+        print(f"[エラー] state取得失敗: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @server.post("/api/import_state")
 def api_import_state():
     """
@@ -179,6 +199,12 @@ if __name__ == "__main__":
     HOST = "127.0.0.1"
     PORT = 5000
     DEBUG = True
+    
+    print("=" * 50)
+    print(f"千紗 Web版を起動します")
+    print(f"URL: http://{HOST}:{PORT}")
+    print(f"デバッグモード: {'ON' if DEBUG else 'OFF'}")
+    print("=" * 50)
     
     server.run(debug=DEBUG, host=HOST, port=PORT)
     

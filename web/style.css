@@ -1,66 +1,225 @@
-* {
-  box-sizing: border-box;
+/* ========================================
+   千紗 - 16bit × ピンク × KAWAII
+   ======================================== */
+
+:root {
+  /* 超kawaiiカラーパレット */
+  --bg-dark: #1a0a2e;
+  --bg-purple: #2d0f4d;
+  --bg-pink: #4d0f3d;
+  
+  --pink-1: #ff69b4;
+  --pink-2: #ff1493;
+  --pink-3: #ff69d9;
+  --pink-4: #ffb3e6;
+  --pink-5: #ffe6f7;
+  
+  --purple-1: #d946ef;
+  --purple-2: #a855f7;
+  --purple-3: #c084fc;
+  
+  --cyan: #00ffff;
+  --yellow: #ffff00;
+  
+  --text-bright: #fff5ff;
+  --text-pink: #ffccff;
+  --text-muted: #d9b3ff;
+  
+  /* ドット絵風 */
+  --pixel: 2px;
+  --radius-pixel: 4px;
 }
 
-html,
-body {
+/* ========================================
+   基本設定
+   ======================================== */
+
+* {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  height: 100%;
-  font-family: "Meiryo", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #0c0b18;
-  color: #f6f6ff;
 }
+
+html, body {
+  height: 100%;
+  font-family: "M PLUS Rounded 1c", "Rounded Mplus 1c", -apple-system, sans-serif;
+  background: 
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 105, 180, 0.03) 0px,
+      rgba(255, 105, 180, 0.03) 2px,
+      transparent 2px,
+      transparent 4px
+    ),
+    radial-gradient(circle at 20% 30%, var(--bg-purple), transparent 60%),
+    radial-gradient(circle at 80% 70%, var(--bg-pink), transparent 60%),
+    var(--bg-dark);
+  color: var(--text-bright);
+  overflow-x: hidden;
+  image-rendering: pixelated;
+}
+
+/* ========================================
+   キラキラアニメーション
+   ======================================== */
+
+@keyframes sparkle {
+  0%, 100% { 
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+}
+
+@keyframes rainbow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pixel-glow {
+  0%, 100% { 
+    box-shadow: 
+      0 0 10px var(--pink-1),
+      0 0 20px var(--pink-2),
+      0 0 30px var(--pink-3);
+  }
+  50% { 
+    box-shadow: 
+      0 0 20px var(--pink-1),
+      0 0 40px var(--pink-2),
+      0 0 60px var(--pink-3);
+  }
+}
+
+/* ========================================
+   ルートコンテナ
+   ======================================== */
 
 .vg-root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
-/* 上のバー */
+.vg-root::before {
+  content: "★";
+  position: fixed;
+  font-size: 20px;
+  color: var(--pink-4);
+  animation: sparkle 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 999;
+  top: 20%;
+  left: 10%;
+}
+
+.vg-root::after {
+  content: "✦";
+  position: fixed;
+  font-size: 24px;
+  color: var(--cyan);
+  animation: sparkle 4s ease-in-out infinite 1s;
+  pointer-events: none;
+  z-index: 999;
+  top: 60%;
+  right: 15%;
+}
+
+/* ========================================
+   トップバー - ドット絵風
+   ======================================== */
 
 .vg-topbar {
-  height: 40px;
+  height: 56px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 16px;
-  background: linear-gradient(90deg, #4448ff, #b067ff);
-  color: #fff;
-  font-size: 13px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  padding: 0 24px;
+  background: 
+    linear-gradient(
+      180deg,
+      rgba(255, 105, 180, 0.4) 0%,
+      rgba(217, 70, 239, 0.3) 100%
+    );
+  border-bottom: 4px solid var(--pink-2);
+  box-shadow: 
+    0 4px 0 rgba(0, 0, 0, 0.3),
+    inset 0 -4px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 100;
+}
+
+.vg-topbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--pink-1) 0px,
+    var(--pink-1) 8px,
+    var(--cyan) 8px,
+    var(--cyan) 16px,
+    var(--yellow) 16px,
+    var(--yellow) 24px
+  );
+  animation: rainbow 8s linear infinite;
 }
 
 .vg-topbar-left {
-  font-weight: 600;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  color: var(--text-bright);
+  text-shadow: 
+    2px 2px 0 var(--pink-2),
+    4px 4px 0 rgba(0, 0, 0, 0.5);
+  animation: bounce 2s ease-in-out infinite;
 }
 
 .vg-topbar-right {
-  font-size: 12px;
+  font-size: 14px;
+  color: var(--pink-5);
+  text-shadow: 0 0 8px var(--pink-1);
 }
 
-/* メイン：背景＋立ち絵＋パネル */
+/* ========================================
+   メインエリア
+   ======================================== */
 
 .vg-main {
   flex: 1;
   position: relative;
   display: flex;
-  padding: 16px 24px 8px;
-  gap: 16px;
+  padding: 24px;
+  gap: 20px;
+  overflow: hidden;
 }
-
-/* 背景（なんとなく夜の部屋っぽいグラデ） */
 
 .vg-bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at top, #2a2a5f, #090812 60%);
-  opacity: 0.9;
+  background: 
+    radial-gradient(circle at 40% 40%, rgba(255, 105, 180, 0.15), transparent 50%),
+    radial-gradient(circle at 60% 60%, rgba(217, 70, 239, 0.15), transparent 50%);
+  pointer-events: none;
   z-index: 0;
 }
 
-/* 立ち絵エリア */
+/* ========================================
+   千紗の立ち絵 - ドット絵風
+   ======================================== */
 
 .vg-chara-area {
   position: relative;
@@ -70,23 +229,62 @@ body {
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
+  flex-shrink: 0;
 }
 
 .vg-chara-placeholder {
-  width: 220px;
-  height: 420px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ff9ad9, #9f7bff);
+  width: 240px;
+  height: 400px;
+  border-radius: 40px;
+  background: 
+    linear-gradient(
+      135deg,
+      var(--pink-1) 0%,
+      var(--pink-2) 25%,
+      var(--purple-1) 50%,
+      var(--purple-2) 75%,
+      var(--cyan) 100%
+    );
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 48px;
+  font-weight: 900;
   color: #fff;
-  opacity: 0.9;
+  text-shadow: 
+    3px 3px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px var(--pink-5);
+  border: 6px solid var(--pink-5);
+  box-shadow: 
+    0 0 0 4px var(--pink-2),
+    0 20px 60px rgba(255, 20, 147, 0.6),
+    inset 0 -20px 40px rgba(0, 0, 0, 0.3);
+  animation: pixel-glow 2s ease-in-out infinite, bounce 4s ease-in-out infinite;
+  position: relative;
 }
 
-/* 右側のパネル（ギャルゲーのメニューウィンドウ風） */
+.vg-chara-placeholder::before {
+  content: "♥";
+  position: absolute;
+  top: -30px;
+  right: 20px;
+  font-size: 32px;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.vg-chara-placeholder::after {
+  content: "★";
+  position: absolute;
+  bottom: -20px;
+  left: 30px;
+  font-size: 28px;
+  color: var(--cyan);
+  animation: sparkle 3s ease-in-out infinite 0.5s;
+}
+
+/* ========================================
+   タスクパネル - ドット絵ウィンドウ
+   ======================================== */
 
 .vg-panel {
   position: relative;
@@ -94,192 +292,485 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  max-width: 780px;
-  background: rgba(12, 12, 28, 0.92);
-  border-radius: 18px;
-  border: 1px solid rgba(180, 170, 255, 0.45);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  max-width: 900px;
+  background: rgba(26, 10, 46, 0.85);
+  border-radius: 16px;
+  border: 4px solid var(--pink-2);
+  box-shadow: 
+    0 0 0 2px var(--pink-5),
+    0 8px 0 rgba(0, 0, 0, 0.3),
+    0 20px 60px rgba(255, 20, 147, 0.4),
+    inset 0 4px 0 rgba(255, 255, 255, 0.2);
   overflow: hidden;
 }
 
-/* タブ */
+.vg-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--pink-1) 0px,
+    var(--pink-1) 16px,
+    var(--purple-1) 16px,
+    var(--purple-1) 32px
+  );
+}
 
+/* タブ - ドット絵ボタン */
 .vg-panel-tabs {
   display: flex;
-  padding: 6px 10px;
+  padding: 12px 8px 8px;
   gap: 6px;
-  background: linear-gradient(90deg, #1b1b33, #252549);
-  border-bottom: 1px solid rgba(120, 110, 220, 0.6);
+  background: rgba(77, 15, 61, 0.6);
+  border-bottom: 3px solid var(--pink-2);
 }
 
 .vg-tab {
-  border: none;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: transparent;
-  color: #e6e6ff;
-  font-size: 12px;
+  border: 3px solid var(--pink-4);
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(255, 105, 180, 0.2);
+  color: var(--text-pink);
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.1s ease;
+  box-shadow: 
+    0 4px 0 rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 
 .vg-tab:hover {
-  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+  background: rgba(255, 105, 180, 0.4);
+}
+
+.vg-tab:active {
+  transform: translateY(2px);
+  box-shadow: 
+    0 2px 0 rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .vg-tab-active {
-  background: linear-gradient(135deg, #ff9ad9, #9f7bff);
-  color: #13131f;
-  font-weight: 600;
+  background: 
+    linear-gradient(
+      180deg,
+      var(--pink-1),
+      var(--pink-2)
+    );
+  color: #fff;
+  border-color: var(--pink-5);
+  box-shadow: 
+    0 0 20px var(--pink-1),
+    0 4px 0 rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5);
 }
 
-/* パネル内 */
-
+/* パネル内容 */
 .vg-panel-inner {
-  padding: 10px 14px 12px;
+  padding: 20px;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
+  background: 
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 4px,
+      rgba(255, 105, 180, 0.02) 4px,
+      rgba(255, 105, 180, 0.02) 8px
+    );
 }
 
 .vg-view {
   display: none;
-  flex: 1;
-  overflow: auto;
 }
 
 .vg-view-active {
   display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .vg-view-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 20px;
 }
 
 .vg-view-header h1 {
-  margin: 0;
-  font-size: 17px;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--pink-1);
+  text-shadow: 
+    2px 2px 0 var(--purple-1),
+    4px 4px 0 rgba(0, 0, 0, 0.3),
+    0 0 20px var(--pink-1);
 }
 
 .vg-view-note {
-  font-size: 12px;
-  color: #b7b7dd;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 8px;
 }
 
-/* ボタン */
-
-.vg-primary-btn {
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: none;
-  background: linear-gradient(135deg, #5c6cff, #9a6bff);
+/* ボタン - ドット絵風 */
+.vg-primary-btn, .vg-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 3px solid var(--pink-5);
+  background: 
+    linear-gradient(
+      180deg,
+      var(--pink-1),
+      var(--pink-2)
+    );
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.1s ease;
+  box-shadow: 
+    0 4px 0 rgba(0, 0, 0, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 0 20px var(--pink-1);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 
-.vg-primary-btn:hover {
-  filter: brightness(1.05);
+.vg-primary-btn:hover, .vg-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 0 rgba(0, 0, 0, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 0 30px var(--pink-1);
 }
 
-/* テーブル（タスク一覧） */
+.vg-primary-btn:active, .vg-btn:active {
+  transform: translateY(2px);
+  box-shadow: 
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* ========================================
+   テーブル - ドット絵風
+   ======================================== */
 
 .vg-table-wrapper {
-  margin-top: 4px;
-  border-radius: 10px;
-  border: 1px solid rgba(110, 100, 210, 0.6);
+  border-radius: 12px;
+  border: 3px solid var(--pink-2);
   overflow: hidden;
-  background: rgba(13, 13, 30, 0.95);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
 }
 
 .task-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
+  background: rgba(26, 10, 46, 0.6);
 }
 
 .task-table thead {
-  background: #222240;
+  background: 
+    linear-gradient(
+      180deg,
+      var(--pink-2),
+      var(--purple-2)
+    );
 }
 
-.task-table th,
+.task-table th {
+  padding: 12px;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  border-right: 2px solid rgba(255, 255, 255, 0.2);
+}
+
 .task-table td {
-  padding: 6px 7px;
-  border-bottom: 1px solid rgba(70, 70, 130, 0.7);
-  vertical-align: top;
+  padding: 12px;
+  border-bottom: 2px solid rgba(255, 105, 180, 0.2);
+  border-right: 2px solid rgba(255, 105, 180, 0.1);
 }
 
 .task-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 105, 180, 0.15);
 }
 
-/* 日誌インポート */
-
-.vg-import-panel {
+.task-table .reason {
+  font-size: 11px;
+  color: var(--text-muted);
   margin-top: 4px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(110, 100, 210, 0.6);
-  background: rgba(13, 13, 30, 0.95);
-  max-width: 480px;
 }
 
-.vg-import-panel p {
-  margin-top: 0;
-  font-size: 13px;
-}
-
-.vg-import-result {
-  margin-top: 6px;
+.task-table button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 2px solid var(--pink-4);
+  background: rgba(255, 105, 180, 0.3);
+  color: #fff;
   font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  box-shadow: 
+    0 3px 0 rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-/* 下のメッセージウィンドウ（ここが“ギャルゲー”の顔） */
-
-.vg-dialog {
-  position: relative;
-  z-index: 1;
-  margin: 0 24px 4px;
-  padding: 8px 12px 10px;
-  border-radius: 18px;
-  background: rgba(12, 12, 26, 0.96);
-  border: 1px solid rgba(200, 190, 255, 0.7);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
+.task-table button:hover {
+  background: var(--pink-1);
+  transform: translateY(-2px);
 }
 
-.vg-nameplate {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ff9ad9, #ffcc9a);
-  color: #281631;
+.task-table button:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   状態カード - kawaii
+   ======================================== */
+
+.vg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.vg-head h2 {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--pink-1);
+  text-shadow: 
+    2px 2px 0 var(--purple-1),
+    0 0 20px var(--pink-1);
+}
+
+.vg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.vg-card {
+  border-radius: 12px;
+  border: 3px solid var(--pink-2);
+  background: 
+    linear-gradient(
+      135deg,
+      rgba(255, 105, 180, 0.15),
+      rgba(217, 70, 239, 0.15)
+    );
+  padding: 16px;
+  min-height: 120px;
+  box-shadow: 
+    0 4px 0 rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.vg-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 8px 0 rgba(0, 0, 0, 0.3),
+    0 0 30px var(--pink-1);
+}
+
+.vg-card-title {
+  font-size: 11px;
+  color: var(--pink-5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.vg-big {
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--pink-1);
+  text-shadow: 
+    2px 2px 0 var(--purple-1),
+    0 0 15px var(--pink-1);
+}
+
+.vg-sub {
+  margin-top: 8px;
   font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 4px;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
-.vg-dialog-text {
+.vg-list {
+  margin: 8px 0 0 20px;
+  padding: 0;
   font-size: 13px;
   line-height: 1.6;
 }
 
-/* ステータスバー */
+.vg-debug {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid var(--pink-2);
+}
+
+.vg-debug summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.vg-debug pre {
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--pink-2);
+  border-radius: 8px;
+  font-size: 11px;
+  overflow: auto;
+}
+
+/* ========================================
+   インポート
+   ======================================== */
+
+.vg-import-panel {
+  padding: 20px;
+  border-radius: 12px;
+  border: 3px solid var(--pink-2);
+  background: rgba(255, 105, 180, 0.1);
+  max-width: 600px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+}
+
+.vg-import-panel code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--pink-2);
+  color: #fff;
+  font-family: monospace;
+}
+
+.vg-import-panel textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 3px solid var(--pink-2);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--text-bright);
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.vg-import-result {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* ========================================
+   メッセージウィンドウ - ドット絵
+   ======================================== */
+
+.vg-dialog {
+  position: relative;
+  z-index: 10;
+  margin: 0 24px 8px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: rgba(26, 10, 46, 0.95);
+  border: 4px solid var(--pink-2);
+  box-shadow: 
+    0 0 0 2px var(--pink-5),
+    0 8px 0 rgba(0, 0, 0, 0.4),
+    inset 0 4px 0 rgba(255, 255, 255, 0.2);
+}
+
+.vg-nameplate {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: 
+    linear-gradient(
+      135deg,
+      var(--pink-1),
+      var(--purple-1)
+    );
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  margin-bottom: 8px;
+  box-shadow: 
+    0 3px 0 rgba(0, 0, 0, 0.4),
+    0 0 15px var(--pink-1);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.vg-dialog-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-bright);
+}
+
+/* ========================================
+   ステータスバー
+   ======================================== */
 
 .vg-status {
-  height: 26px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
-  font-size: 11px;
-  background: #090814;
-  border-top: 1px solid #2a2740;
-  color: #b0b0d0;
+  padding: 0 24px;
+  font-size: 12px;
+  background: rgba(26, 10, 46, 0.8);
+  border-top: 3px solid var(--pink-2);
+  color: var(--text-muted);
 }
 
-#sync-info {
-  color: #8ed78e;
+/* ========================================
+   レスポンシブ
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .vg-main {
+    flex-direction: column;
+  }
+  
+  .vg-chara-area {
+    width: 100%;
+    height: 200px;
+  }
+  
+  .vg-chara-placeholder {
+    width: 180px;
+    height: 180px;
+  }
+}
+
+@media (max-width: 640px) {
+  .vg-panel-tabs {
+    overflow-x: auto;
+  }
+  
+  .vg-grid {
+    grid-template-columns: 1fr;
+  }
 }
