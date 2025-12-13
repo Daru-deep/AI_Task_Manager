@@ -2,11 +2,34 @@ from flask import Flask, jsonify, send_from_directory, request
 from pathlib import Path
 import json
 import app
+import os
+import traceback
+from errors import ChisaError
+#APIの確認用
+k = os.environ.get("OPENAI_API_KEY","")
+print("OPENAI_API_KEY last4 =", k[-4:] if k else "MISSING")
 
 
 
 # web/ フォルダを静的ファイル置き場にする
 server = Flask(__name__, static_folder="web")
+
+
+def _error_response(e: Exception):
+    if isinstance(e, ChisaError):
+        return jsonify({
+            "success": False,
+            "error_code": e.code,
+            "error": str(e),
+            "meta": e.meta
+        }), 500
+
+    traceback.print_exc()
+    return jsonify({
+        "success": False,
+        "error_code": "E_INTERNAL",
+        "error": str(e)
+    }), 500
 
 @server.get("/api/today")
 def api_today():
@@ -17,27 +40,41 @@ def api_today():
         return jsonify(recs)
     except Exception as e:
         print(f"[エラー] 今日のおすすめ取得に失敗: {e}")
-        # エラー時は空配列を返す（フロント側で「タスクなし」として扱える）
-        return jsonify([]), 500
+
+        # 互換維持：配列を返す（tasks.jsが配列前提のため）
+        resp = jsonify([])
+        resp.status_code = 500
+
+        # 再発検出：エラーコードをヘッダで返す
+        resp.headers["X-Error-Code"] = e.code if isinstance(e, ChisaError) else "E_INTERNAL"
+        return resp
 
 @server.get("/api/state")
 def api_state_get():
     try:
-        # state.jsonを直接読み込む
-        from pathlib import Path
-        import json
-        
-        state_path = Path("data/state.json")
-        if not state_path.exists():
-            return jsonify({"success": False, "error": "state.jsonが見つかりません"}), 404
-        
-        with open(state_path, "r", encoding="utf-8") as f:
-            state_data = json.load(f)
-        
+        # 正：app.py側の統一ロジックを使う
+        state_data = app.load_state()
         return jsonify({"success": True, "data": state_data})
+
     except Exception as e:
-        print(f"[エラー] state取得失敗: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        # フォールバック：どうしてもダメなら直読み
+        try:
+            from pathlib import Path
+            import json
+
+            state_path = Path("data/state.json")
+            if not state_path.exists():
+                return jsonify({"success": False, "error": "state.jsonが見つかりません"}), 404
+
+            with state_path.open("r", encoding="utf-8") as f:
+                state_data = json.load(f)
+
+            return jsonify({"success": True, "data": state_data})
+
+        except Exception as e2:
+            print(f"[エラー] state取得失敗: {e} / fallback失敗: {e2}")
+            return jsonify({"success": False, "error": str(e2)}), 500
+
 
 
 @server.post("/api/import_state")

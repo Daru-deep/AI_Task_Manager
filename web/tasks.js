@@ -14,44 +14,39 @@ let allTasks = [];
 let lastTodayFetchTime = 0;
 
 // tasks.js の loadTodaySafe() を修正
+// web/tasks.js
 async function loadTodaySafe() {
   const now = Date.now();
   const timeSinceLastFetch = now - lastTodayFetchTime;
-  const cooldownMs = 60000; // 60秒
-  
-  // 60秒以内なら何もしない
+  const cooldownMs = 60000;
+
   if (timeSinceLastFetch < cooldownMs) {
-    const remainingSeconds = Math.ceil((cooldownMs - timeSinceLastFetch) / 1000);
-    console.log(`レート制限対策：あと${remainingSeconds}秒待ってから再取得します`);
-    
-    // 千紗に教えてもらう
-    const bubble = document.getElementById("chisa-bubble");
-    if (bubble) {
-      bubble.textContent = `ちょっと待ってね。あと${remainingSeconds}秒でデータを取得できるよ。`;
-      bubble.classList.remove("chisa-bubble-hidden");
-      
-      // 3秒後に消す
-      setTimeout(() => {
-        bubble.classList.add("chisa-bubble-hidden");
-      }, 3000);
-    }
-    
-    return;
+    // …表示処理…
+    return []; // ← 明示
   }
-  
+
   lastTodayFetchTime = now;
-  return loadToday();
+  await loadToday();
+  return allTasks; // ← 何を返すか決める
 }
 
-/**
- * サーバーから今日のおすすめタスクを取得（実際の処理）
- */
+// web/tasks.js
 async function loadToday() {
   try {
-    const response = await fetch("/api/today");
+    const response = await fetch("/api/today", { cache: "no-store" });
+
+    // 失敗時：X-Error-Code を拾ってログ、配列互換のまま空で描画して終了
+    if (!response.ok) {
+      const code = response.headers.get("X-Error-Code");
+      if (code) console.warn("X-Error-Code:", code);
+
+      allTasks = [];
+      renderTasks(allTasks);
+      return;
+    }
+
     const data = await response.json();
 
-    // データが配列かチェック
     if (!Array.isArray(data)) {
       console.error("APIエラー: データが配列ではありません", data);
       allTasks = [];
@@ -60,14 +55,15 @@ async function loadToday() {
       console.log(`タスクを${data.length}件取得しました`);
     }
 
-    // タスクを画面に表示
     renderTasks(allTasks);
-    
+
   } catch (error) {
     console.error("タスク取得エラー:", error);
     allTasks = [];
+    renderTasks(allTasks);
   }
 }
+
 
 /**
  * タスクをテーブルに表示する

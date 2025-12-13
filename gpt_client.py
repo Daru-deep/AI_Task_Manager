@@ -3,6 +3,9 @@ import json
 import os
 from openai import OpenAI
 from config import TAGS_MASTER_PATH
+from dotenv import load_dotenv
+load_dotenv()
+
 
 API_KEY = os.environ.get("OPENAI_API_KEY", "")
 if not API_KEY:
@@ -56,6 +59,41 @@ CHISA_TAG_CANDIDATES: list[str] = [
     "review",
 ]
 """
+
+def _safe_parse_json_object(text: str) -> dict[str, Any]:
+    """
+    モデル返答に余計な文字が混ざっても、先頭のJSONオブジェクトだけを抽出して返す。
+    例: '{...}\n補足...' や '```json\n{...}\n```' でも耐える。
+    """
+    s = (text or "").strip()
+
+    # コードフェンス対策（```json ... ```）
+    if s.startswith("```"):
+        # 先頭の ```json と末尾の ``` を雑に剥がす
+        s = s.strip("`").strip()
+        # "json\n{...}" みたいになってたら先頭行を落とす
+        if "\n" in s and s.split("\n", 1)[0].lower().strip() in ("json",):
+            s = s.split("\n", 1)[1].strip()
+
+    dec = json.JSONDecoder()
+
+    # まず先頭から素直に読む
+    try:
+        obj, _ = dec.raw_decode(s)
+        if isinstance(obj, dict):
+            return obj
+    except Exception:
+        pass
+
+    # 先頭が文章なら、最初の { から読む
+    i = s.find("{")
+    if i != -1:
+        obj, _ = dec.raw_decode(s[i:])
+        if isinstance(obj, dict):
+            return obj
+
+    raise json.JSONDecodeError("JSON object not found", s, 0)
+
 
 # 優先度提案用の system プロンプト
 PRIORITY_SYSTEM_PROMPT: str = """
@@ -175,16 +213,18 @@ def chisa_suggest_priority(
 """.strip()
 
     try:
-        resp = client.chat.completions.create(
+        resp = client.responses.create(
             model="gpt-4o-mini",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": PRIORITY_SYSTEM_PROMPT},  # ← ここ修正
+            # ↓ messages を input に渡す（そのまま会話形式でOK）
+            input=[
+                {"role": "system", "content": PRIORITY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
+            # JSON強制（もしここでエラー出たら下の注釈参照）
+            response_format={"type": "json_object"},
             timeout=30.0,
         )
-        content: str = resp.choices[0].message.content or "{}"
+        content: str = resp.output_text or "{}"
     
     except Exception as e:
         print(f"[警告] 千紗への問い合わせに失敗しました: {e}")  # ← メッセージ修正
@@ -193,7 +233,7 @@ def chisa_suggest_priority(
 
     # ← ここからJSON解析のtryブロック（元からあったもの）
     try:
-        data: dict[str, Any] = json.loads(content)
+        data: dict[str, Any] = _safe_parse_json_object(content)
     except json.JSONDecodeError:
         print("千紗の優先度レスポンスがJSONとして壊れていました:", content)
         return []
@@ -277,24 +317,25 @@ JSONのみで返してください。
 
 
     try:
-        resp = client.chat.completions.create(
+        resp = client.responses.create(
             model="gpt-4o-mini",
-            response_format={"type": "json_object"},
-            messages=[
+            input=[
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg},
             ],
+            response_format={"type": "json_object"},
             timeout=30.0,
         )
-        content: str = resp.choices[0].message.content or "{}"
-    
+        content: str = resp.output_text or "{}"
+
     except Exception as e:
         print(f"[警告] 千紗へのタグ提案に失敗しました: {e}")
         print("タグなしでタスクを追加します。")
         return []
 
+
     try:
-        data: dict[str, Any] = json.loads(content)
+        data: dict[str, Any] = _safe_parse_json_object(content)
     except json.JSONDecodeError:
         print("千紗のタグ付けレスポンスがJSONとして壊れていました:", content)
         return []

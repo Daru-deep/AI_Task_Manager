@@ -6,12 +6,12 @@ print("API_KEY present:",bool(api_key))
 
 client = OpenAI(api_key=api_key)
 
-resp = client.chat.completions.create(
-    model = "gpt-4o-mini",
-    messages=[
+resp = client.responses.create(
+    model="gpt-4o-mini",
+    input=[
         {"role":"system","content":"You are a test bot."},
         {"role":"user","content":"Say 'pong' only"},
     ],
 )
 
-print("Response:",resp.choices[0].message.content)
+print("Response:", resp.output_text)

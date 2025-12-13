@@ -12,7 +12,7 @@ DATA_DIR.mkdir(exist_ok=True)
 # ファイルパス
 TAGS_MASTER_PATH: Path = DATA_DIR / "tags_master.json"
 TASKS_PATH: Path = DATA_DIR / "tasks.jsonl"
-PROJECTS_PATH : Path = BASE_DIR / "projects.json"
+PROJECTS_PATH: Path = DATA_DIR / "projects.json"
 
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
 
