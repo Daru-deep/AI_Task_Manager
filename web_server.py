@@ -5,6 +5,7 @@ import app
 import os
 import traceback
 from errors import ChisaError
+from storage import load_tasks
 #APIの確認用
 k = os.environ.get("OPENAI_API_KEY","")
 print("OPENAI_API_KEY last4 =", k[-4:] if k else "MISSING")
@@ -13,6 +14,8 @@ print("OPENAI_API_KEY last4 =", k[-4:] if k else "MISSING")
 
 # web/ フォルダを静的ファイル置き場にする
 server = Flask(__name__, static_folder="web")
+
+
 
 
 def _error_response(e: Exception):
@@ -52,28 +55,20 @@ def api_today():
 @server.get("/api/state")
 def api_state_get():
     try:
-        # 正：app.py側の統一ロジックを使う
+        # ★ app.py側の統一ロジック（data/state.json）を使う
         state_data = app.load_state()
+        
+        # ★ stateが空（日誌未提出）の場合もX-Error-Codeで通知
+        if not state_data:
+            resp = jsonify({"success": True, "data": {}})
+            resp.headers["X-Error-Code"] = "E_STATE_EMPTY"
+            return resp
+        
         return jsonify({"success": True, "data": state_data})
 
     except Exception as e:
-        # フォールバック：どうしてもダメなら直読み
-        try:
-            from pathlib import Path
-            import json
-
-            state_path = Path("data/state.json")
-            if not state_path.exists():
-                return jsonify({"success": False, "error": "state.jsonが見つかりません"}), 404
-
-            with state_path.open("r", encoding="utf-8") as f:
-                state_data = json.load(f)
-
-            return jsonify({"success": True, "data": state_data})
-
-        except Exception as e2:
-            print(f"[エラー] state取得失敗: {e} / fallback失敗: {e2}")
-            return jsonify({"success": False, "error": str(e2)}), 500
+        print(f"[エラー] state取得失敗: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 
@@ -119,12 +114,12 @@ def api_import_state():
             "error": "日誌ファイルの保存に失敗しました。"
         }), 500
 
-    # 4. 既存ロジック(app.import_state_log)を呼び出し
+    # 4. ★ 直接 import_state_data を呼ぶ（ファイル経由不要）
     try:
-        print(f"[api_import_state] import_state_log 呼び出し: {dst}")
-        app.import_state_log(str(dst))
+        print(f"[api_import_state] import_state_data 呼び出し")
+        app.import_state_data(data)
     except Exception as e:
-        print(f"[エラー] import_state_log 実行中に例外: {e}")
+        print(f"[エラー] import_state_data 実行中に例外: {e}")
         return jsonify({
             "success": False,
             "error": "日誌インポート処理中にエラーが発生しました。"
@@ -184,7 +179,14 @@ def api_import_state_pasted():
         "data": recs
     })
 
-
+@server.get("/api/tasks")
+def api_tasks_all():
+    """Android用：タスク全件を返す"""
+    try:
+        tasks = load_tasks()
+        return jsonify({"success": True, "tasks": tasks})
+    except Exception as e:
+        return _error_response(e)
 
 @server.post("/api/tasks/done")
 def api_task_done():
@@ -217,6 +219,31 @@ def api_task_done():
         "success": True,
         "data": recs
     })
+    
+@server.post("/api/tasks/update")
+def api_tasks_update():
+    """
+    Android用：タスク状態更新
+    body例: { "id": 7, "status": "done" }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        task_id_raw = data.get("id")
+        status = data.get("status")
+
+        task_id = int(task_id_raw)
+
+        if status != "done":
+            return jsonify({"success": False, "error": "only 'done' is supported in v0.1"}), 400
+
+        ok = app.complete_task(task_id)
+        if not ok:
+            return jsonify({"success": False, "error": "task not found"}), 404
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return _error_response(e)
+
 
 """web/を返す"""
 @server.get("/")
@@ -254,6 +281,3 @@ if __name__ == "__main__":
     print("=" * 50)
     
     server.run(debug=DEBUG, host=HOST, port=PORT)
-    
-    
-    

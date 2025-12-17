@@ -12,8 +12,12 @@ from state_effect import adjust_score_by_state
 
 # === パス関連 ===
 BASE_DIR = Path(__file__).parent
-STATE_PATH = BASE_DIR / "state.json"
-TASKS_PATH = BASE_DIR / "data" / "tasks.jsonl"  # 追加：タスクファイルのパス
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)  # data/ディレクトリを確実に作成
+
+# ★ すべてのパスをdata配下に統一
+STATE_PATH = DATA_DIR / "state.json"
+TASKS_PATH = DATA_DIR / "tasks.jsonl"
 
 
 def save_tasks(tasks: list[dict[str, Any]]) -> None:
@@ -314,99 +318,6 @@ def get_today_recommendation() -> list[dict[str, Any]]:
         })
 
     return results
-    """
-    Web用：
-    state.json と tasks.jsonl を使って、千紗のおすすめ順を
-    「表示せずに list[dict] として返す」バージョン。
-    """
-    tasks = load_tasks()
-    state = load_state()
-    projects = load_projects()
-    tags_master = load_tags_master()
-
-    # タグごとの重み辞書（show_today_recommendation と同じ）
-    tag_weight_by_key: dict[str, int] = {}
-    for tag_def in tags_master.get("tags", []):
-        key = tag_def.get("key")
-        if not key:
-            continue
-        w = int(tag_def.get("weight_for_priority", 0))
-        tag_weight_by_key[key] = w
-
-    today = date.today()
-
-    # status が "todo" のタスクだけ対象
-    todo_tasks: list[dict[str, Any]] = [t for t in tasks if t.get("status") == "todo"]
-
-    # days_left, base_score, score を計算
-    for t in todo_tasks:
-        # 期日取得（タスク → プロジェクト default）
-        due_str = t.get("due_date")
-
-        if not due_str:
-            proj = t.get("project")
-            if proj:
-                proj_info = projects.get(proj, {})
-                due_str = proj_info.get("default_due_date")
-
-        if due_str:
-            try:
-                d = date.fromisoformat(due_str)
-                days_left = (d - today).days
-            except ValueError:
-                days_left = None
-        else:
-            days_left = None
-
-        t["days_left"] = days_left
-
-        # タグから基礎スコア
-        base_score = 0
-        for key in t.get("tags", []):
-            base_score += tag_weight_by_key.get(key, 0)
-        t["base_score"] = base_score
-
-        # priority_hint 補正
-        priority_hint = t.get("priority_hint")
-        score = apply_priority_hint(base_score, priority_hint)
-
-        # state からさらに補正
-        score = adjust_score_by_state(score, t, state)
-
-        t["score"] = score
-
-    # 千紗APIに渡して、優先度順リストをもらう
-    ordered = chisa_suggest_priority(todo_tasks, state)
-    if not ordered:
-        return []
-
-    # id → 元タスク で引ける辞書
-    tasks_by_id: dict[str, dict[str, Any]] = {str(t["id"]): t for t in tasks}
-
-    results: list[dict[str, Any]] = []
-    for item in ordered:
-        tid_str = str(item.get("id"))
-        reason = item.get("reason", "")
-        original = tasks_by_id.get(tid_str)
-        if original is None:
-            continue
-
-        results.append(
-            {
-                "id": original.get("id"),
-                "text": original.get("text", "(タイトル不明)"),
-                "project": original.get("project"),
-                "status": original.get("status"),
-                "progress": original.get("status"),  # GUI/WEBでprogress名が欲しければここ見る
-                "tags": original.get("tags", []),
-                "due_date": original.get("due_date"),
-                "days_left": original.get("days_left"),
-                "score": original.get("score"),
-                "reason": reason,
-            }
-        )
-
-    return results
 
 def complete_task(task_id: int) -> bool:
     """
@@ -439,7 +350,7 @@ def import_state_data(data: dict[str, Any]) -> None:
     """
     from datetime import datetime
     
-    # 1) state.json を更新
+    # 1) state.json を更新（★ save_state()を使うのでSTATE_PATHに自動的に保存される）
     state_out: dict[str, Any] = {
         "date": data.get("date"),
         "meta": data.get("meta", {}),
@@ -447,10 +358,10 @@ def import_state_data(data: dict[str, Any]) -> None:
         "focus_plan": data.get("focus_plan", {}),
         "tomorrow_suggestions": data.get("tomorrow_suggestions", {}),
         "free_note": data.get("free_note", ""),
-        "last_imported_at": datetime.now().isoformat(timespec="seconds"),  # ← 追加
+        "last_imported_at": datetime.now().isoformat(timespec="seconds"),
     }
     save_state(state_out)
-    print("state.json を更新しました。")
+    print(f"state.json を更新しました: {STATE_PATH}")
 
     # 2) new_tasks からタスクを追加
     new_tasks_data = data.get("new_tasks", [])
@@ -511,12 +422,6 @@ def import_state_log(path_str: str) -> None:
         data = json.load(f)
 
     import_state_data(data)
-
-def load_state():
-    path = Path("data/state.json")
-    if not path.exists():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8"))
 
 def get_projects_summary() -> list[dict[str, Any]]:
     """

@@ -101,8 +101,11 @@ async function sendImportToServer(data, statusElement) {
 
     console.log("日誌インポート成功");
 
-    // タスクリストを再読み込み（クールダウンチェック付き）
-    await loadTodaySafe();  // ← すでにクールダウン対応済み
+    // ★ タスクリストを再読み込み（クールダウンチェック付き）
+    await loadTodaySafe();
+
+    // ★ state も再取得して表示を更新
+    await loadState();
 
     // 千紗にセリフを喋らせる
     chisaSayFromKey("on_import_success", 4000);

@@ -43,14 +43,30 @@ def load_tasks() -> list[dict]:
                 )
     return tasks
 
-def append_task(path: Path, task: dict) -> None:
-    line = json.dumps(task, ensure_ascii=False)
-    # 1行1JSONの保証
-    json.loads(line)  # 念のため：壊れたJSONは書かない
+# storage.py
 
-    with path.open("a", encoding="utf-8", newline="\n") as f:
+def append_task(*args) -> None:
+    """
+    後方互換:
+    - append_task(task)
+    - append_task(path, task)
+    の両方を許可する。
+    """
+    if len(args) == 1:
+        task = args[0]
+        path = TASKS_PATH
+    elif len(args) == 2:
+        path, task = args
+    else:
+        raise TypeError("append_task expects (task) or (path, task)")
+
+    line = json.dumps(task, ensure_ascii=False)
+    json.loads(line)  # 壊れたJSONは書かない
+
+    with Path(path).open("a", encoding="utf-8", newline="\n") as f:
         f.write(line + "\n")
         f.flush()
+
         
 def _load_json_flexible(path: Path):
     if not path.exists():
