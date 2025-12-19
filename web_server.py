@@ -6,6 +6,10 @@ import os
 import traceback
 from errors import ChisaError
 from storage import load_tasks
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+
 #APIの確認用
 k = os.environ.get("OPENAI_API_KEY","")
 print("OPENAI_API_KEY last4 =", k[-4:] if k else "MISSING")
@@ -281,3 +285,38 @@ if __name__ == "__main__":
     print("=" * 50)
     
     server.run(debug=DEBUG, host=HOST, port=PORT)
+
+
+@server.post("/api/diary")
+def api_diary_post():
+    """
+    Android用：本文＋体調だけ受け取り、サーバー側の日付で state として取り込む
+    body: { "body":"...", "health": 0..5 }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        body = data.get("body")
+        health = data.get("health")
+
+        if not isinstance(body, str) or not body.strip():
+            return jsonify({"success": False, "error": "body is required"}), 400
+        if not isinstance(health, int) or not (0 <= health <= 5):
+            return jsonify({"success": False, "error": "health must be int 0..5"}), 400
+
+        # サーバー側で「今日」を採用（Asia/Tokyo）
+        date_str = datetime.now(ZoneInfo("Asia/Tokyo")).date().isoformat()
+
+        state = {
+            "date": date_str,
+            "meta": {"health_score": health},
+            "free_note": body,
+        }
+
+        # 既存の取り込みルートに寄せる（/import・state管理はここに集約）
+        app.import_state_data(state)
+
+        return jsonify({"success": True, "date": date_str})
+
+    except Exception as e:
+        return _error_response(e)
+
