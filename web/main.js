@@ -112,10 +112,10 @@ function setupTabButtons() {
   }
 
   // 今日のおすすめ更新ボタン
-  const refreshTodayBtn = document.getElementById("btn-refresh-today");
+ /* const refreshTodayBtn = document.getElementById("btn-refresh-today");
   if (refreshTodayBtn) {
     refreshTodayBtn.addEventListener("click", loadTodaySafe);
-  }
+  }*/
 
   // インポートボタン（import.jsの関数を呼ぶ）
   setupImportButtons();

@@ -1,11 +1,12 @@
 <!doctype html>
 <html lang="ja">
+
 <head>
   <meta charset="utf-8">
   <title>千紗 - 今日のおすすめ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/style.css">
-  
+
   <!-- JSファイルを順番に読み込む（この順番が重要！） -->
   <script src="/web/chisa.js" defer></script>
   <script src="/web/tasks.js" defer></script>
@@ -14,6 +15,48 @@
   <script src="/web/projects.js" defer></script>
   <script src="/web/main.js" defer></script>
 </head>
+<!-- Project Tasks Modal -->
+<div id="project-modal" style="
+  position:fixed; inset:0; display:none;
+  background: rgba(0,0,0,0.55);
+  z-index: 9999;
+">
+  <div style="
+    width:min(1100px, 96vw);
+    max-height: 88vh;
+    margin: 6vh auto;
+    background: var(--bg, #111);
+    border: 1px solid var(--border, #333);
+    border-radius: 14px;
+    overflow:hidden;
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border,#333);">
+      <div>
+        <div class="vg-card-title" id="project-modal-id">project</div>
+        <div style="font-weight:800; font-size:16px;" id="project-modal-name">Project Name</div>
+        <div style="font-size:12px; opacity:.75;" id="project-modal-sub">未完了タスク</div>
+      </div>
+      <button class="complete-btn" id="project-modal-close">閉じる</button>
+    </div>
+
+    <div style="padding:12px 14px; overflow:auto; max-height: 76vh;">
+      <table class="task-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th style="width:60px;">ID</th>
+            <th>内容</th>
+            <th style="width:120px;">締切</th>
+            <th style="width:70px;">スコア</th>
+            <th>理由</th>
+            <th style="width:70px;">状態</th>
+            <th style="width:80px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="project-modal-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <body>
   <div class="vg-root">
@@ -54,9 +97,10 @@
           <section id="view-today" class="vg-view vg-view-active">
             <div class="vg-view-header">
               <h1>今日のおすすめタスク</h1>
-              <button id="btn-refresh-today" class="vg-primary-btn">
+              <!--           <button id="btn-refresh-today" class="vg-primary-btn">
                 再計算 / 更新
               </button>
+-->
             </div>
 
             <div class="vg-table-wrapper">
@@ -81,62 +125,89 @@
           </section>
 
           <section id="view-state" class="vg-view">
-  <div class="vg-head">
-    <h2>今日のステータス</h2>
-    <button id="btn-refresh-state" class="vg-btn">更新</button>
-  </div>
+            <div class="vg-head">
+              <h2>今日のステータス</h2>
+              <button id="btn-refresh-state" class="vg-btn">更新</button>
+            </div>
 
-  <div class="vg-grid">
-    <div class="vg-card">
-      <div class="vg-card-title">体調</div>
-      <div class="vg-big" id="st-physical">-</div>
-      <div class="vg-sub" id="st-physical-note"></div>
-    </div>
+            <div class="vg-grid">
+              <div class="vg-card">
+                <div class="vg-card-title">体調</div>
+                <div class="vg-big" id="st-physical">-</div>
+                <div class="vg-sub" id="st-physical-note"></div>
+              </div>
 
-    <div class="vg-card">
-      <div class="vg-card-title">メンタル</div>
-      <div class="vg-big" id="st-mental">-</div>
-      <div class="vg-sub" id="st-mental-note"></div>
-    </div>
+              <div class="vg-card">
+                <div class="vg-card-title">メンタル</div>
+                <div class="vg-big" id="st-mental">-</div>
+                <div class="vg-sub" id="st-mental-note"></div>
+              </div>
 
-    <div class="vg-card">
-      <div class="vg-card-title">集中</div>
-      <div class="vg-big" id="st-focus">-</div>
-      <div class="vg-sub" id="st-focus-note"></div>
-    </div>
+              <div class="vg-card">
+                <div class="vg-card-title">集中</div>
+                <div class="vg-big" id="st-focus">-</div>
+                <div class="vg-sub" id="st-focus-note"></div>
+              </div>
 
-    <div class="vg-card">
-      <div class="vg-card-title">今日の制約</div>
-      <ul class="vg-list" id="st-constraints"></ul>
-    </div>
+              <div class="vg-card">
+                <div class="vg-card-title">今日の制約</div>
+                <ul class="vg-list" id="st-constraints"></ul>
+              </div>
 
-    <div class="vg-card">
-      <div class="vg-card-title">今日やりたいこと</div>
-      <ul class="vg-list" id="st-goals"></ul>
-    </div>
+              <div class="vg-card">
+                <div class="vg-card-title">今日やりたいこと</div>
+                <ul class="vg-list" id="st-goals"></ul>
+              </div>
 
-    <div class="vg-card">
-      <div class="vg-card-title">最終更新</div>
-      <div class="vg-sub" id="st-updated-at">-</div>
-    </div>
-  </div>
+              <div class="vg-card">
+                <div class="vg-card-title">最終更新</div>
+                <div class="vg-sub" id="st-updated-at">-</div>
+              </div>
+            </div>
 
-  <!-- デバッグ用（普段は非表示でOK） -->
-  <details class="vg-debug">
-    <summary>raw state.json</summary>
-    <pre id="state-raw"></pre>
-  </details>
-</section>
+            <!-- デバッグ用（普段は非表示でOK） -->
+            <details class="vg-debug">
+              <summary>raw state.json</summary>
+              <pre id="state-raw"></pre>
+            </details>
+          </section>
 
 
 
-          <!-- 全タスク（枠だけ） -->
+          <!-- 全タスク -->
           <section id="view-all" class="vg-view">
             <div class="vg-view-header">
-              <h1>全タスク</h1>
-              <p class="vg-view-note">※ 中身はあとで。今は見た目の枠だけ。</p>
+              <h1>全タスク（未完了）</h1>
+              <p class="vg-view-note">※ todo のみ表示。done は表示しません。</p>
+              <div class="vg-controls">
+                <label class="vg-label">
+                  project:
+                  <select id="all-project-filter" class="vg-select">
+                    <option value="">すべて</option>
+                  </select>
+                </label>
+              </div>
+
+            </div>
+
+            <div class="vg-table-wrapper">
+              <table class="task-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>内容</th>
+                    <th>プロジェクト</th>
+                    <th>締切</th>
+                    <th>スコア</th>
+                    <th>状態</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="all-task-body"></tbody>
+              </table>
             </div>
           </section>
+
 
           <!-- プロジェクトビュー（枠だけ） -->
           <section id="view-projects" class="vg-view">
@@ -149,34 +220,30 @@
 
           <!-- 日誌インポート -->
           <section id="view-import" class="vg-view">
-  <div class="vg-view-header">
-    <h1>日誌インポート</h1>
-  </div>
+            <div class="vg-view-header">
+              <h1>日誌インポート</h1>
+            </div>
 
-  <div class="vg-import-panel">
-    <p>① GPT から出てきた <code>state_YYYY-MM-DD.json</code> の中身をそのままコピペして使えます。</p>
+            <div class="vg-import-panel">
+              <p>① GPT から出てきた <code>state_YYYY-MM-DD.json</code> の中身をそのままコピペして使えます。</p>
 
-    <!-- ★ ここがペースト用 -->
-    <textarea
-      id="state-text"
-      rows="12"
-      placeholder="ここに JSON テキストをそのまま貼り付けてね"
-      style="width: 100%; font-family: monospace;"
-    ></textarea>
+              <!-- ★ ここがペースト用 -->
+              <textarea id="state-text" rows="12" placeholder="ここに JSON テキストをそのまま貼り付けてね"
+                style="width: 100%; font-family: monospace;"></textarea>
 
-    <button id="btn-import-text" class="vg-primary-btn" style="margin-top: 6px;">
-      貼り付けたJSONを取り込む
-    </button>
+              <button id="btn-import-text" class="vg-primary-btn" style="margin-top: 6px;">
+                貼り付けたJSONを取り込む
+              </button>
 
-    <hr style="margin: 12px 0; opacity: .3;">
+              <hr style="margin: 12px 0; opacity: .3;">
 
-    <p>② これまで通り、ファイルからインポートもできます。</p>
-    <input type="file" id="state-file" accept=".json,.txt,application/json,text/plain">
-    <button id="btn-import" class="vg-primary-btn">ファイルからインポート</button>
+              <p>② これまで通り、ファイルからインポートもできます。</p>
+              <input type="file" id="state-file" accept=".json,.txt,application/json,text/plain">
+              <button id="btn-import" class="vg-primary-btn">ファイルからインポート</button>
 
-    <div id="import-result" class="vg-import-result"></div>
-  </div>
-</section>
+              <div id="import-result" class="vg-import-result"></div>
+            </div>
+          </section>
         </div>
       </section>
     </main>
@@ -197,6 +264,8 @@
     </footer>
   </div>
 </body>
+
+
 
 
 </html>

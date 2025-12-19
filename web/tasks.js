@@ -15,20 +15,21 @@ let lastTodayFetchTime = 0;
 
 // tasks.js の loadTodaySafe() を修正
 // web/tasks.js
-async function loadTodaySafe() {
+async function loadTodaySafe(force = false) {
   const now = Date.now();
   const timeSinceLastFetch = now - lastTodayFetchTime;
   const cooldownMs = 60000;
 
-  if (timeSinceLastFetch < cooldownMs) {
-    // …表示処理…
-    return []; // ← 明示
+  if (!force && timeSinceLastFetch < cooldownMs) {
+    // クールダウン中は何もしない
+    return [];
   }
 
   lastTodayFetchTime = now;
   await loadToday();
-  return allTasks; // ← 何を返すか決める
+  return allTasks;
 }
+
 
 // web/tasks.js
 async function loadToday() {
@@ -81,7 +82,7 @@ function renderTasks(tasks) {
 
   // ===== 上位3件に制限 =====
   const displayTasks = tasks.slice(0, 3);
-  
+
   // 全件数が3件超えている場合は情報を表示
   if (tasks.length > 3) {
     const infoRow = document.createElement("tr");
@@ -117,17 +118,16 @@ function renderTasks(tasks) {
  * @param {Object} task - タスクのデータ
  * @returns {HTMLElement} 作成した行要素
  */
+
 function createTaskRow(task) {
   const tr = document.createElement("tr");
 
-  // 締切の表示文字列を作る
   const dueText = formatDueDate(task.due_date);
 
   tr.innerHTML = `
     <td>${task.id || "-"}</td>
     <td>
       <div>${task.text || "（タスク名なし）"}</div>
-      ${task.reason ? `<div class="reason" style="font-size:11px; opacity:0.8; margin-top:4px;">${task.reason}</div>` : ''}
     </td>
     <td>${task.project || "-"}</td>
     <td>${dueText}</td>
@@ -139,6 +139,7 @@ function createTaskRow(task) {
 
   return tr;
 }
+
 
 /**
  * 締切日付をわかりやすい文字列に変換
@@ -181,7 +182,7 @@ function formatDueDate(dueDate) {
  */
 function setupCompleteButtons(tbody) {
   const buttons = tbody.querySelectorAll("button[data-id]");
-  
+
   buttons.forEach(button => {
     button.addEventListener("click", async (event) => {
       const taskId = event.target.dataset.id;
@@ -205,7 +206,7 @@ async function completeTask(taskId) {
     if (response.ok) {
       console.log(`タスク${taskId}を完了にしました`);
       // タスクリストを再読み込み
-      await loadTodaySafe();
+      await loadTodaySafe(true);
       // 千紗にセリフを喋らせる
       chisaSayFromKey("on_task_complete");
     } else {
@@ -214,4 +215,108 @@ async function completeTask(taskId) {
   } catch (error) {
     console.error("タスク完了エラー:", error);
   }
+}
+
+async function loadAllTodo(force = false) {
+  // いったん /api/tasks で全部取って、todoだけに絞る（B）
+  const res = await fetch("/api/tasks");
+  const json = await res.json();
+  if (!json.success) return;
+
+  const tasks = json.tasks || [];
+  const todo = tasks.filter(t => t.status !== "done");
+
+  // ① options更新（未完了に存在するprojectだけ出す）
+  updateAllProjectFilterOptions(todo);
+
+  // ② 選択中projectで絞って描画
+  const filtered = filterAllTodoByProject(todo);
+  renderAllTodo(filtered);
+
+}
+
+function renderAllTodo(tasks) {
+  const tbody = document.getElementById("all-task-body");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  for (const t of tasks) {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${t.id}</td>
+      <td>${escapeHtml(t.text ?? t.title ?? "")}</td>
+      <td>${escapeHtml(t.project ?? "")}</td>
+      <td>${escapeHtml(t.due_date ?? "")}</td>
+      <td>${t.score ?? ""}</td>
+      <td>${escapeHtml(t.status ?? "")}</td>
+      <td><button class="vg-btn" data-done-id="${t.id}">完了</button></td>
+    `;
+
+    tbody.appendChild(tr);
+  }
+
+  // 完了ボタン（未完了だけだから「完了」固定でOK）
+  tbody.querySelectorAll("[data-done-id]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = Number(btn.getAttribute("data-done-id"));
+      await completeTask(id);
+      await loadAllTodo(true);
+    });
+  });
+}
+
+// 既にあるなら不要（無ければ追加）
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const projectSel = document.getElementById("all-project-filter");
+if (projectSel) {
+  projectSel.addEventListener("change", () => loadAllTodo(true));
+}
+
+  const navAll = document.getElementById("nav-all");
+  if (navAll) {
+    navAll.addEventListener("click", () => loadAllTodo(true));
+  }
+
+  await loadTodaySafe(true);
+  await loadAllTodo(true);
+});
+
+
+function updateAllProjectFilterOptions(tasks) {
+  const sel = document.getElementById("all-project-filter");
+  if (!sel) return;
+
+  const current = sel.value;
+
+  const projects = Array.from(
+    new Set(tasks.map(t => (t.project ?? "").trim()).filter(p => p.length > 0))
+  ).sort((a, b) => a.localeCompare(b, "ja"));
+
+  // 先頭の「すべて」以外を作り直す
+  sel.innerHTML = `<option value="">すべて</option>` + projects
+    .map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)
+    .join("");
+
+  // 可能なら選択状態を維持
+  sel.value = projects.includes(current) ? current : "";
+}
+
+
+function filterAllTodoByProject(tasks) {
+  const sel = document.getElementById("all-project-filter");
+  const selected = (sel?.value ?? "").trim();
+  if (!selected) return tasks;
+  return tasks.filter(t => (t.project ?? "").trim() === selected);
 }

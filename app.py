@@ -25,7 +25,8 @@ def save_tasks(tasks: list[dict[str, Any]]) -> None:
     lines: list[str] = []
     for t in tasks:
         lines.append(json.dumps(t, ensure_ascii=False))
-    TASKS_PATH.write_text("\n".join(lines), encoding="utf-8")
+    TASKS_PATH.write_text(("\n".join(lines) + "\n") if lines else "", encoding="utf-8")
+
 
 # === 状態（state）読み込み ===
 def load_state() -> dict[str, Any]:

@@ -215,15 +215,14 @@ def chisa_suggest_priority(
     try:
         resp = client.responses.create(
             model="gpt-4o-mini",
-            # ↓ messages を input に渡す（そのまま会話形式でOK）
             input=[
                 {"role": "system", "content": PRIORITY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
-            # JSON強制（もしここでエラー出たら下の注釈参照）
-            response_format={"type": "json_object"},
+            text={"format": {"type": "json_object"}},
             timeout=30.0,
         )
+
         content: str = resp.output_text or "{}"
     
     except Exception as e:
@@ -320,12 +319,13 @@ JSONのみで返してください。
         resp = client.responses.create(
             model="gpt-4o-mini",
             input=[
-                {"role": "system", "content": system_msg},
+                {"role": "system", "content": PRIORITY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
-            response_format={"type": "json_object"},
+            text={"format": {"type": "json_object"}},
             timeout=30.0,
-        )
+)
+
         content: str = resp.output_text or "{}"
 
     except Exception as e:
