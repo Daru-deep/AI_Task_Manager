@@ -13,7 +13,8 @@ from zoneinfo import ZoneInfo
 #APIの確認用
 k = os.environ.get("OPENAI_API_KEY","")
 print("OPENAI_API_KEY last4 =", k[-4:] if k else "MISSING")
-
+#どのファイルが実装されているかの確認用
+print("web_server.py loaded:",__file__)
 
 
 # web/ フォルダを静的ファイル置き場にする
@@ -269,22 +270,19 @@ def api_projects_list():
     except Exception as e:
         print(f"[エラー] プロジェクト一覧取得失敗: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+print("✅ /api/diary route loaded")
 
-if __name__ == "__main__":
-    # ===== 接続設定 =====
-    # 自分のPCからのみ: host="127.0.0.1"
-    # 同じWiFi内のスマホから: host="0.0.0.0" (注意: デバッグモードは必ず無効化)
-    HOST = "127.0.0.1"
-    PORT = 5000
-    DEBUG = True
-    
-    print("=" * 50)
-    print(f"千紗 Web版を起動します")
-    print(f"URL: http://{HOST}:{PORT}")
-    print(f"デバッグモード: {'ON' if DEBUG else 'OFF'}")
-    print("=" * 50)
-    
-    server.run(debug=DEBUG, host=HOST, port=PORT)
+def _today_iso_jst_or_local() -> str:
+    try:
+        from zoneinfo import ZoneInfo  # py3.9+
+        try:
+            return datetime.now(ZoneInfo("Asia/Tokyo")).date().isoformat()
+        except Exception:
+            # tz databaseが無い/キーが無い等
+            return datetime.now().date().isoformat()
+    except Exception:
+        # zoneinfo自体が使えない環境
+        return datetime.now().date().isoformat()
 
 
 @server.post("/api/diary")
@@ -304,7 +302,7 @@ def api_diary_post():
             return jsonify({"success": False, "error": "health must be int 0..5"}), 400
 
         # サーバー側で「今日」を採用（Asia/Tokyo）
-        date_str = datetime.now(ZoneInfo("Asia/Tokyo")).date().isoformat()
+        date_str = _today_iso_jst_or_local()
 
         state = {
             "date": date_str,
@@ -319,4 +317,20 @@ def api_diary_post():
 
     except Exception as e:
         return _error_response(e)
+
+if __name__ == "__main__":
+    # ===== 接続設定 =====
+    # 自分のPCからのみ: host="127.0.0.1"
+    # 同じWiFi内のスマホから: host="0.0.0.0" (注意: デバッグモードは必ず無効化)
+    HOST = "127.0.0.1"
+    PORT = 5000
+    DEBUG = True
+    
+    print("=" * 50)
+    print(f"千紗 Web版を起動します")
+    print(f"URL: http://{HOST}:{PORT}")
+    print(f"デバッグモード: {'ON' if DEBUG else 'OFF'}")
+    print("=" * 50)
+    
+    server.run(debug=DEBUG, host=HOST, port=PORT)
 
