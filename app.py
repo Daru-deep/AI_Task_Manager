@@ -320,6 +320,77 @@ def get_today_recommendation() -> list[dict[str, Any]]:
 
     return results
 
+def get_tasks_scored_all() -> list[dict[str, Any]]:
+    """
+    Android用：
+    - tasks.jsonl の todo に score を付与（state/projects/tagsを加味）
+    - 千紗のおすすめ（最大5件）にだけ reason を付与
+    - done も含めて返す（邪魔なら todo のみにしてOK）
+    """
+    tasks = load_tasks()
+    state = load_state()
+    projects = load_projects()
+    tags_master = load_tags_master()
+
+    # まず score を計算（get_today_recommendation と同じ流れ）
+    today = date.today()
+    todo_tasks: list[dict[str, Any]] = [t for t in tasks if t.get("status") == "todo"]
+
+    for t in todo_tasks:
+        # 期日取得（タスク → プロジェクト default）
+        due_str = t.get("due_date")
+        if not due_str:
+            proj = t.get("project")
+            if proj:
+                proj_info = projects.get(proj, {})
+                due_str = proj_info.get("default_due_date")
+
+        if due_str:
+            try:
+                d = date.fromisoformat(due_str)
+                days_left = (d - today).days
+            except ValueError:
+                days_left = None
+        else:
+            days_left = None
+
+        t["days_left"] = days_left
+
+        # タグから基礎スコア
+        base_score = 0
+        tag_weight_by_key = tags_master.get("tag_weight_by_key", {})
+        for key in t.get("tags", []):
+            base_score += tag_weight_by_key.get(key, 0)
+        t["base_score"] = base_score
+
+        # priority_hint 補正
+        priority_hint = t.get("priority_hint")
+        score = apply_priority_hint(base_score, priority_hint)
+
+        # state からさらに補正
+        score = adjust_score_by_state(score, t, state)
+
+        t["score"] = score
+
+    # 次に 千紗で「おすすめ順＋理由」をもらう（最大5件）
+    ordered = chisa_suggest_priority(todo_tasks, state)  # ← 既存の関数を利用
+
+    # reason を id で引けるようにする
+    reason_by_id: dict[str, str] = {}
+    for item in (ordered or []):
+        tid = str(item.get("id"))
+        reason = str(item.get("reason", "")).strip()
+        if tid and reason:
+            reason_by_id[tid] = reason
+
+    # tasks 全体に reason を付与（おすすめ以外は空文字）
+    for t in tasks:
+        tid = str(t.get("id"))
+        t["reason"] = reason_by_id.get(tid, "")
+
+    return tasks
+
+
 def complete_task(task_id: int) -> bool:
     """
     指定IDのタスクを status='done' にして保存する。

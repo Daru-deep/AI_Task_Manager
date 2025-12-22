@@ -193,6 +193,16 @@ def api_tasks_all():
     except Exception as e:
         return _error_response(e)
 
+@server.get("/api/tasks_scored")
+def api_tasks_scored():
+    """Android用：score/reason付きタスク全件"""
+    try:
+        tasks = app.get_tasks_scored_all()
+        return jsonify({"success": True, "tasks": tasks})
+    except Exception as e:
+        return _error_response(e)
+
+
 @server.post("/api/tasks/done")
 def api_task_done():
     """
