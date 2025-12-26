@@ -183,6 +183,26 @@ PRIORITY_SYSTEM_PROMPT: str = """
 """.strip()
 
 
+def _normalize_state_for_chisa(state: dict[str, Any]) -> dict[str, Any]:
+    """千紗が判断しやすいキーに寄せて補完する（全除外防止）"""
+    s = dict(state or {})
+
+    energy = s.get("energy_budget")
+    if "physical_energy" not in s:
+        s["physical_energy"] = "low" if energy in ("short", "tiny") else "medium"
+    if "mental_energy" not in s:
+        s["mental_energy"] = "low" if energy in ("short", "tiny") else "medium"
+
+    s.setdefault("can_sit_at_desk", True)
+    s.setdefault("can_go_outside", True)
+
+    s.setdefault("creative_drive", "medium")
+    s.setdefault("money_pressure_creative", "low")
+    s.setdefault("study_deadline_days", 999)
+
+    return s
+
+
 def chisa_suggest_priority(
     tasks: list[dict[str, Any]],
     state: dict[str, Any],
@@ -193,11 +213,14 @@ def chisa_suggest_priority(
 
     戻り値: [{ "id": int, "reason": str }, ...]
     """
-    # Pythonのdict/listをJSON文字列に変換して、プロンプトに埋め込む
-    state_json: str = json.dumps(state, ensure_ascii=False)
-    tasks_json: str = json.dumps(tasks, ensure_ascii=False)
+    print("[DEBUG] chisa_suggest_priority called. tasks=", len(tasks))
 
-    user_msg: str = f"""
+    # ① state を補完してから投げる（重要）
+    state_norm = _normalize_state_for_chisa(state)
+    state_json = json.dumps(state_norm, ensure_ascii=False)
+    tasks_json = json.dumps(tasks, ensure_ascii=False)
+
+    user_msg = f"""
 これから小鳥遊の「今日の状態」と「タスク一覧」を渡します。
 
 【今日の状態 state（JSON）】
@@ -214,9 +237,9 @@ def chisa_suggest_priority(
 お願い：
 - 今日やるべきタスクを優先順位順に並べてください。
 - 各タスクについて、「なぜそれを優先したのか」の理由も短く付けてください。
+- 情報が足りず判断が難しい場合でも、締切が近い/着手しやすい todo を最低1件は提案してください。
 - 出力は必ず JSON のみ（ordered_tasks配列）で返してください。
 """.strip()
-    print("[DEBUG] chisa_suggest_priority called. tasks=", len(tasks))
 
     try:
         resp = client.responses.create(
@@ -229,21 +252,31 @@ def chisa_suggest_priority(
             timeout=30.0,
         )
 
-        content: str = resp.output_text or "{}"
-        data = json.loads(content)
+        content = resp.output_text or "{}"
+        print("[DEBUG] chisa response received")
+        print("[DEBUG] output_text head=", content[:200])
 
+        data = _safe_parse_json_object(content)  # ← ここだけでパース（1回）
         ordered = data.get("ordered_tasks", [])
         if not isinstance(ordered, list):
             return []
 
-        # ここで形を軽く正規化（安全）
+        # ② 実在タスクIDだけ通す（安全）
+        valid_ids = {t.get("id") for t in tasks}
         out: list[dict[str, Any]] = []
         for item in ordered:
-            if isinstance(item, dict) and "id" in item:
-                out.append({
-                    "id": int(item["id"]),
-                    "reason": str(item.get("reason", "")).strip(),
-                })
+            if not isinstance(item, dict):
+                continue
+            raw_id = item.get("id")
+            try:
+                task_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if task_id not in valid_ids:
+                continue
+            reason = str(item.get("reason", "")).strip()
+            out.append({"id": task_id, "reason": reason})
+
         return out
 
     except Exception as e:
@@ -253,45 +286,6 @@ def chisa_suggest_priority(
         print("今回は千紗なしで動作を続けます。")
         return []
 
-
-    # ← ここからJSON解析のtryブロック（元からあったもの）
-    try:
-        data: dict[str, Any] = _safe_parse_json_object(content)
-    except json.JSONDecodeError:
-        print("千紗の優先度レスポンスがJSONとして壊れていました:", content)
-        return []
-
-    ordered: list[dict[str, Any]] = data.get("ordered_tasks", [])
-    
-    # 実在するタスクIDのセットを作成（検証用）
-    valid_task_ids = {t["id"] for t in tasks}
-    
-    # id / reason を整形して返す
-    normalized: list[dict[str, Any]] = []
-    for item in ordered:
-        # IDを整数に変換
-        raw_id = item.get("id")
-        try:
-            task_id = int(raw_id)
-        except (TypeError, ValueError):
-            print(f"[警告] 不正なタスクID: {raw_id}")
-            continue
-        
-        # 存在しないIDをスキップ
-        if task_id not in valid_task_ids:
-            print(f"[警告] 存在しないタスクID: {task_id}")
-            continue
-        
-        reason = str(item.get("reason", "")).strip()
-        
-        # 理由が空ならスキップ
-        if not reason:
-            print(f"[警告] タスク{task_id}の理由が空です")
-            continue
-        
-        normalized.append({"id": task_id, "reason": reason})
-
-    return normalized
 
 
 def chisa_suggest_tags(title: str, detail: str) -> list[str]:
@@ -343,7 +337,7 @@ JSONのみで返してください。
         resp = client.responses.create(
             model="gpt-4o-mini",
             input=[
-                {"role": "system", "content": PRIORITY_SYSTEM_PROMPT},
+                {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg},
             ],
             text={"format": {"type": "json_object"}},

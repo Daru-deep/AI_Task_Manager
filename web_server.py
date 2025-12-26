@@ -337,7 +337,7 @@ if __name__ == "__main__":
     # 同じWiFi内のスマホから: host="0.0.0.0" (注意: デバッグモードは必ず無効化)
     HOST = "0.0.0.0"
     PORT = 5000
-    DEBUG = True
+    DEBUG = False
     
     print("=" * 50)
     print(f"千紗 Web版を起動します")
