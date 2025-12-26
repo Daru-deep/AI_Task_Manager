@@ -8,6 +8,9 @@ from errors import ChisaError
 from storage import load_tasks
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import os
+print("OPENAI_API_KEY =", "set" if os.getenv("OPENAI_API_KEY") else "none")
+
 
 
 #APIの確認用

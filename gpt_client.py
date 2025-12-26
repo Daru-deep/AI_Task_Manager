@@ -1,10 +1,15 @@
-from typing import Any
-import json
+from pathlib import Path
 import os
-from openai import OpenAI
-from config import TAGS_MASTER_PATH
+import json
+from typing import Any
+
 from dotenv import load_dotenv
-load_dotenv()
+from openai import OpenAI
+
+from config import TAGS_MASTER_PATH
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
 
 
 API_KEY = os.environ.get("OPENAI_API_KEY", "")
@@ -34,7 +39,7 @@ def load_tag_candidates() -> list[str]:
 
 CHISA_TAG_CANDIDATES: list[str] = [
     "job_search",
-    "career_research",      # ← 追加
+    "career_research",      
     "portfolio",
     "portfolio_review",
     "strategy_game",
@@ -211,6 +216,7 @@ def chisa_suggest_priority(
 - 各タスクについて、「なぜそれを優先したのか」の理由も短く付けてください。
 - 出力は必ず JSON のみ（ordered_tasks配列）で返してください。
 """.strip()
+    print("[DEBUG] chisa_suggest_priority called. tasks=", len(tasks))
 
     try:
         resp = client.responses.create(
@@ -224,11 +230,29 @@ def chisa_suggest_priority(
         )
 
         content: str = resp.output_text or "{}"
-    
+        data = json.loads(content)
+
+        ordered = data.get("ordered_tasks", [])
+        if not isinstance(ordered, list):
+            return []
+
+        # ここで形を軽く正規化（安全）
+        out: list[dict[str, Any]] = []
+        for item in ordered:
+            if isinstance(item, dict) and "id" in item:
+                out.append({
+                    "id": int(item["id"]),
+                    "reason": str(item.get("reason", "")).strip(),
+                })
+        return out
+
     except Exception as e:
-        print(f"[警告] 千紗への問い合わせに失敗しました: {e}")  # ← メッセージ修正
+        import traceback
+        print("[警告] 千紗への問い合わせに失敗しました:", e)
+        traceback.print_exc()
         print("今回は千紗なしで動作を続けます。")
         return []
+
 
     # ← ここからJSON解析のtryブロック（元からあったもの）
     try:

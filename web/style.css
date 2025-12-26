@@ -814,3 +814,36 @@ html, body {
   0% { background-position: 0 0; }
   100% { background-position: 20px 20px; }
 }
+
+/* ===== 今日のステータス（#view-state）だけ縦積みにする ===== */
+#view-state .vg-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#view-state .vg-card{
+  padding: 12px;
+  min-height: 0;      /* ←ここが重要（余白消える） */
+}
+
+#view-state .vg-card-title{
+  font-size: 12px;
+  opacity: .9;
+  margin-bottom: 6px;
+}
+
+#view-state .vg-big{
+  font-size: 16px;      /* ここで暴れてた */
+  line-height: 1.35;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+#view-state .vg-sub{
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: .85;
+  word-break: break-word;
+}

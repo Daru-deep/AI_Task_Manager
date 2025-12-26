@@ -79,16 +79,16 @@ function renderTasks(tasks) {
 
   // テーブルを空にする
   tbody.innerHTML = "";
+const displayLimit = 5;
+  // ===== 上位5件に制限 =====
+  const displayTasks = tasks.slice(0, 5);
 
-  // ===== 上位3件に制限 =====
-  const displayTasks = tasks.slice(0, 3);
-
-  // 全件数が3件超えている場合は情報を表示
-  if (tasks.length > 3) {
+  // 全件数が5件超えている場合は情報を表示
+  if (tasks.length > 5) {
     const infoRow = document.createElement("tr");
     infoRow.innerHTML = `
       <td colspan="8" style="text-align:center; background:rgba(255,105,180,0.15); padding:10px; font-size:12px; color:#ffccff;">
-        💫 全${tasks.length}件中、上位3件を表示しています
+        💫 全${tasks.length}件中、上位5件を表示しています
       </td>
     `;
     tbody.appendChild(infoRow);
