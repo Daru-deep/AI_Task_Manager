@@ -211,6 +211,10 @@ def get_today_recommendation() -> list[dict[str, Any]]:
     state.json と tasks.jsonl を使って、千紗のおすすめ順を
     「表示せずに list[dict] として返す」バージョン。
     """
+    
+    print("[DEBUG] get_today_recommendation start")
+    print("[DEBUG] todo_count=", len([t for t in tasks if t.get("status")=="todo"]))
+
     tasks = load_tasks()
     state = load_state()
     projects = load_projects()
@@ -269,6 +273,8 @@ def get_today_recommendation() -> list[dict[str, Any]]:
 
     # 千紗APIに渡して、優先度順リストをもらう
     ordered = chisa_suggest_priority(todo_tasks, state)
+    print("[DEBUG] chisa_result_count=", len(ordered))
+
     
     # 千紗が失敗したら、スコアで並べる（フォールバック）
     if not ordered:

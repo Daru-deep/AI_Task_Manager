@@ -213,14 +213,43 @@ def chisa_suggest_priority(
 
     戻り値: [{ "id": int, "reason": str }, ...]
     """
-    print("[DEBUG] chisa_suggest_priority called. tasks=", len(tasks))
 
-    # ① state を補完してから投げる（重要）
+    # --- 0) todoだけに絞る（呼び出し側がやっててもここで保証する） ---
+    todo = [t for t in (tasks or []) if t.get("status") == "todo"]
+
+    # --- 1) 少数タスクはAI呼ばない（ここが今回の主目的） ---
+    # 例：todoが0〜2件なら「そのまま返す」。3件でも安全側で同じにしてOK。
+    if len(todo) <= 2:
+        return [{"id": int(t["id"]), "reason": "件数が少ないため、そのまま候補にします"} for t in todo]
+
+    # 「AIが空返しする」ケースが多いなら、ここを 3 にしてもいい（<=3でAI呼ばない）
+    if len(todo) <= 3:
+        # score があれば高い順、なければそのまま
+        todo_sorted = sorted(todo, key=lambda x: (x.get("score") is None, -(x.get("score") or 0)))
+        return [{"id": int(t["id"]), "reason": "件数が少ないため、ローカル優先度で提示します"} for t in todo_sorted]
+
+    # --- 2) プロンプト用のstate正規化（全除外防止） ---
+    def _normalize_state_for_chisa(s: dict[str, Any]) -> dict[str, Any]:
+        s = dict(s or {})
+        energy = s.get("energy_budget")
+
+        s.setdefault("physical_energy", "low" if energy in ("short", "tiny") else "medium")
+        s.setdefault("mental_energy", "low" if energy in ("short", "tiny") else "medium")
+
+        s.setdefault("can_sit_at_desk", True)
+        s.setdefault("can_go_outside", True)
+
+        s.setdefault("creative_drive", "medium")
+        s.setdefault("money_pressure_creative", "low")
+        s.setdefault("study_deadline_days", 999)
+        return s
+
     state_norm = _normalize_state_for_chisa(state)
-    state_json = json.dumps(state_norm, ensure_ascii=False)
-    tasks_json = json.dumps(tasks, ensure_ascii=False)
 
-    user_msg = f"""
+    state_json: str = json.dumps(state_norm, ensure_ascii=False)
+    tasks_json: str = json.dumps(todo, ensure_ascii=False)
+
+    user_msg: str = f"""
 これから小鳥遊の「今日の状態」と「タスク一覧」を渡します。
 
 【今日の状態 state（JSON）】
@@ -233,13 +262,15 @@ def chisa_suggest_priority(
 - status が "todo" のタスクだけを対象にしてください。
 - 今日の状態とタグを考慮して、現実的に実行可能なタスクだけを候補にしてください。
 - 最大5件までで十分です。
+- 候補が1件しかない場合でも、その1件を必ず ordered_tasks に含めてください。
 
 お願い：
 - 今日やるべきタスクを優先順位順に並べてください。
 - 各タスクについて、「なぜそれを優先したのか」の理由も短く付けてください。
-- 情報が足りず判断が難しい場合でも、締切が近い/着手しやすい todo を最低1件は提案してください。
 - 出力は必ず JSON のみ（ordered_tasks配列）で返してください。
 """.strip()
+
+    print("[DEBUG] chisa_suggest_priority called. todo=", len(todo))
 
     try:
         resp = client.responses.create(
@@ -252,18 +283,20 @@ def chisa_suggest_priority(
             timeout=30.0,
         )
 
-        content = resp.output_text or "{}"
-        print("[DEBUG] chisa response received")
-        print("[DEBUG] output_text head=", content[:200])
+        content: str = resp.output_text or "{}"
+        data = json.loads(content) if content else {}
+        ordered = data.get("ordered_tasks", []) if isinstance(data, dict) else []
 
-        data = _safe_parse_json_object(content)  # ← ここだけでパース（1回）
-        ordered = data.get("ordered_tasks", [])
-        if not isinstance(ordered, list):
-            return []
+        # --- 3) AIが空配列ならフォールバック（ここが今回の主目的その2） ---
+        if not ordered:
+            print("[INFO] ordered_tasks empty -> fallback(local)")
+            todo_sorted = sorted(todo, key=lambda x: (x.get("score") is None, -(x.get("score") or 0)))
+            return [{"id": int(t["id"]), "reason": "AIが候補を絞れなかったためローカル優先度で提示します"} for t in todo_sorted[:5]]
 
-        # ② 実在タスクIDだけ通す（安全）
-        valid_ids = {t.get("id") for t in tasks}
+        # --- 4) 返り値を正規化（存在するIDだけ、型崩れ防止） ---
+        valid_ids = {int(t["id"]) for t in todo if "id" in t}
         out: list[dict[str, Any]] = []
+
         for item in ordered:
             if not isinstance(item, dict):
                 continue
@@ -277,14 +310,23 @@ def chisa_suggest_priority(
             reason = str(item.get("reason", "")).strip()
             out.append({"id": task_id, "reason": reason})
 
-        return out
+        # それでも空になったらローカルに落とす（最後の保険）
+        if not out:
+            print("[INFO] normalized empty -> fallback(local)")
+            todo_sorted = sorted(todo, key=lambda x: (x.get("score") is None, -(x.get("score") or 0)))
+            return [{"id": int(t["id"]), "reason": "出力が不安定だったためローカル優先度で提示します"} for t in todo_sorted[:5]]
+
+        return out[:5]
 
     except Exception as e:
         import traceback
         print("[警告] 千紗への問い合わせに失敗しました:", e)
         traceback.print_exc()
         print("今回は千紗なしで動作を続けます。")
-        return []
+        # フォールバック：スコア優先（なければ0扱い）
+        todo_sorted = sorted(todo, key=lambda x: (x.get("score") is None, -(x.get("score") or 0)))
+        return [{"id": int(t["id"]), "reason": "通信/解析に失敗したためローカル優先度で提示します"} for t in todo_sorted[:5]]
+
 
 
 

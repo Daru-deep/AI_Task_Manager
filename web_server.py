@@ -46,19 +46,18 @@ def _error_response(e: Exception):
 def api_today():
     """今日のおすすめタスク一覧を返す"""
     try:
+        print("[DEBUG] /api/today called")
         recs = app.get_today_recommendation()
-        # ★ ここでそのまま配列を返す
-        return jsonify(recs)
+        print(f"[DEBUG] recs_count={len(recs)}")
+        return jsonify(recs)   # ← そのまま配列を返す
     except Exception as e:
         print(f"[エラー] 今日のおすすめ取得に失敗: {e}")
 
-        # 互換維持：配列を返す（tasks.jsが配列前提のため）
         resp = jsonify([])
         resp.status_code = 500
-
-        # 再発検出：エラーコードをヘッダで返す
         resp.headers["X-Error-Code"] = e.code if isinstance(e, ChisaError) else "E_INTERNAL"
         return resp
+
 
 @server.get("/api/state")
 def api_state_get():
