@@ -44,20 +44,16 @@ def _error_response(e: Exception):
 
 @server.get("/api/today")
 def api_today():
-    """今日のおすすめタスク一覧を返す"""
+    """今日のおすすめタスク一覧を返す（配列）"""
     try:
         print("[DEBUG] /api/today called")
         recs = app.get_today_recommendation()
-        print(f"[DEBUG] recs_count={len(recs)}")
-        return jsonify(recs)   # ← そのまま配列を返す
+        return jsonify(recs)   # ★配列を返す（フロント互換）
     except Exception as e:
         print(f"[エラー] 今日のおすすめ取得に失敗: {e}")
-
         resp = jsonify([])
         resp.status_code = 500
-        resp.headers["X-Error-Code"] = e.code if isinstance(e, ChisaError) else "E_INTERNAL"
         return resp
-
 
 @server.get("/api/state")
 def api_state_get():
@@ -124,6 +120,9 @@ def api_import_state():
     # 4. ★ 直接 import_state_data を呼ぶ（ファイル経由不要）
     try:
         print(f"[api_import_state] import_state_data 呼び出し")
+        
+        ensure_ui_note(data) 
+        
         app.import_state_data(data)
     except Exception as e:
         print(f"[エラー] import_state_data 実行中に例外: {e}")
@@ -171,6 +170,7 @@ def api_import_state_pasted():
 
     # 既存のロジックを流用：dictを直接渡す
     try:
+        ensure_ui_note(parsed) 
         app.import_state_data(parsed)
     except Exception as e:
         print(f"[エラー] import_state_data で例外: {e}")
@@ -185,6 +185,43 @@ def api_import_state_pasted():
         "success": True,
         "data": recs
     })
+
+def ensure_ui_note(state: dict) -> dict:
+    """
+    state.ui.note が無い場合に、free_note等からUI用メモを補完する。
+    state自体を書き換えて返す（in-place）。
+    """
+    if not isinstance(state, dict):
+        return state
+
+    ui = state.get("ui")
+    if not isinstance(ui, dict):
+        ui = {}
+        state["ui"] = ui
+
+    note = ui.get("note")
+    if isinstance(note, str) and note.strip():
+        return state  # すでにある
+
+    # 優先候補：既存互換キー
+    cand = ""
+    if isinstance(state.get("ui_note"), str):
+        cand = state["ui_note"]
+    elif isinstance(state.get("diary"), dict) and isinstance(state["diary"].get("ui_note"), str):
+        cand = state["diary"]["ui_note"]
+    elif isinstance(state.get("free_note"), str):
+        cand = state["free_note"]
+
+    cand = (cand or "").strip()
+
+    # UIに出すのは短く（長文汚染防止）
+    if cand:
+        ui["note"] = cand[:240] + ("…" if len(cand) > 240 else "")
+    else:
+        ui["note"] = ""
+
+    return state
+
 
 @server.get("/api/tasks")
 def api_tasks_all():

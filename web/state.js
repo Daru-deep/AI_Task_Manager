@@ -60,6 +60,11 @@ function displayState(state) {
   setText("st-mental-note", view.mentalNote || "");
   setText("st-focus-note", view.focusNote || "");
 
+  // ★ UI用メモ（free_noteではなく、ui.note）
+  setText("st-ui-note", view.uiNote || "");
+
+
+
   // 制約条件と目標をリスト表示
   setList("st-constraints", view.constraintsList);
   setList("st-goals", view.goalsList);
@@ -73,9 +78,6 @@ function displayState(state) {
   } else {
     setText("st-updated-at", view.updatedAt || "-");
   }
-
-  // 最終更新日時を表示
-  setText("st-updated-at", view.updatedAt || "-");
 
   // デバッグ用：生のJSONを表示
   const raw = document.getElementById("state-raw");
@@ -124,7 +126,10 @@ function extractStateView(state) {
   const focus = state?.focus_plan ?? {};
 
   // 体調・メンタル・集中力（色々な名前のキーに対応）
-  const physical = meta.physical_energy ?? meta.physical ?? meta.body ?? meta.health ?? null;
+  const physical =
+    meta.health_score
+    ?? meta.physical_energy ?? meta.physical ?? meta.body ?? meta.health ?? null;
+
   const mental = meta.mental_energy ?? meta.mental ?? meta.mood ?? null;
   const focusLevel = meta.focus_level ?? meta.focus ?? meta.concentration ?? null;
 
@@ -153,6 +158,22 @@ function extractStateView(state) {
     }
   }
 
+  // UI用メモ（統一形 ui.note を優先、互換キーも読む）
+  const uiNoteRaw =
+    state?.ui?.note
+    ?? state?.ui_note
+    ?? state?.diary?.ui_note
+    ?? "";
+
+  const uiNote = String(uiNoteRaw ?? "").trim();
+
+  // 旧データ互換：uiNoteが無い場合だけ free_note の先頭を短く
+  const fallback = String(state?.free_note ?? "").trim();
+  const uiNoteFinal =
+    uiNote
+      ? uiNote
+      : (fallback ? fallback.slice(0, 140) + (fallback.length > 140 ? "…" : "") : "");
+
   // 更新日時
   const updatedAt = state?.date ?? meta?.date ?? meta?.updated_at ?? "";
 
@@ -165,9 +186,11 @@ function extractStateView(state) {
     focusNote,
     constraintsList,
     goalsList,
-    updatedAt
+    updatedAt,
+    uiNote: uiNoteFinal,
   };
 }
+
 
 /**
  * スコアを見やすい形式に変換

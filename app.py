@@ -123,6 +123,7 @@ def list_tasks() -> None:
 # === 今日のおすすめタスク表示 ===
 def show_today_recommendation() -> None:
     """state.json と tasks.jsonl を使って、千紗のおすすめ順を表示する。"""
+    print("[DEBUG] show_today_recommendation ENTER", flush=True)
     tasks = load_tasks()
     state = load_state()
     projects = load_projects()
@@ -136,6 +137,10 @@ def show_today_recommendation() -> None:
             continue
         w = int(tag_def.get("weight_for_priority", 0))
         tag_weight_by_key[key] = w
+        
+    print("[DEBUG] tags_master_count=", len(tags_master.get("tags", [])),flush=True)
+    print("[DEBUG] tag_weight_sample=", list(tag_weight_by_key.items())[:10],flush=True)
+
 
     today = date.today()
 
@@ -205,44 +210,52 @@ def show_today_recommendation() -> None:
 
 
 
+
 def get_today_recommendation() -> list[dict[str, Any]]:
     """
     Web用：
     state.json と tasks.jsonl を使って、千紗のおすすめ順を
-    「表示せずに list[dict] として返す」バージョン。
+    list[dict] として返す。
     """
-    
-    print("[DEBUG] get_today_recommendation start")
-    print("[DEBUG] todo_count=", len([t for t in tasks if t.get("status")=="todo"]))
+    print("[DEBUG] get_today_recommendation ENTER", flush=True)
 
-    tasks = load_tasks()
+    # まず全部ロード（順番が大事）
+    tasks_all = load_tasks()
     state = load_state()
     projects = load_projects()
     tags_master = load_tags_master()
 
-    # タグごとの重み辞書
+    todo_tasks: list[dict[str, Any]] = [t for t in tasks_all if t.get("status") == "todo"]
+    print("[DEBUG] todo_count=", len(todo_tasks), flush=True)
+
+    # tags_master を重み辞書に
+    tag_defs = tags_master.get("tags", []) if isinstance(tags_master, dict) else []
     tag_weight_by_key: dict[str, int] = {}
-    for tag_def in tags_master.get("tags", []):
+    for tag_def in tag_defs:
+        if not isinstance(tag_def, dict):
+            continue
         key = tag_def.get("key")
         if not key:
             continue
-        w = int(tag_def.get("weight_for_priority", 0))
-        tag_weight_by_key[key] = w
+        try:
+            w = int(tag_def.get("weight_for_priority", 0))
+        except Exception:
+            w = 0
+        tag_weight_by_key[str(key)] = w
+
+    print("[DEBUG] tags_master_count=", len(tag_defs), flush=True)
+    print("[DEBUG] tag_weight_sample=", list(tag_weight_by_key.items())[:10], flush=True)
 
     today = date.today()
 
-    # status が "todo" のタスクだけ対象
-    todo_tasks: list[dict[str, Any]] = [t for t in tasks if t.get("status") == "todo"]
-
-    # days_left, base_score, score を計算
+    # days_left / base_score / score を計算
     for t in todo_tasks:
-        # 期日取得（タスク → プロジェクト default）
+        # --- due_date ---
         due_str = t.get("due_date")
-
         if not due_str:
             proj = t.get("project")
             if proj:
-                proj_info = projects.get(proj, {})
+                proj_info = projects.get(proj, {}) if isinstance(projects, dict) else {}
                 due_str = proj_info.get("default_due_date")
 
         if due_str:
@@ -256,10 +269,32 @@ def get_today_recommendation() -> list[dict[str, Any]]:
 
         t["days_left"] = days_left
 
-        # タグから基礎スコア
+        # --- tags 型ゆれ対応（str / list / dict）---
+        raw_tags = t.get("tags", [])
+        if isinstance(raw_tags, str):
+            tags_list = [raw_tags]
+        elif isinstance(raw_tags, list):
+            tags_list = raw_tags
+        else:
+            tags_list = []
+
         base_score = 0
-        for key in t.get("tags", []):
-            base_score += tag_weight_by_key.get(key, 0)
+        for tag in tags_list:
+            if isinstance(tag, dict):
+                k = tag.get("key") or tag.get("name")
+                k = str(k) if k is not None else ""
+            else:
+                k = str(tag)
+
+            if not k:
+                continue
+
+            w = tag_weight_by_key.get(k)
+            if w is None:
+                # tags_master未登録でも0固定にしない（最低1点）
+                w = 1
+            base_score += w
+
         t["base_score"] = base_score
 
         # priority_hint 補正
@@ -269,21 +304,27 @@ def get_today_recommendation() -> list[dict[str, Any]]:
         # state からさらに補正
         score = adjust_score_by_state(score, t, state)
 
+        # 締切ボーナス（タグが未整備でも優先度が動く）
+        if days_left is not None:
+            if days_left <= 0:
+                score += 50
+            elif days_left <= 3:
+                score += 20
+            elif days_left <= 7:
+                score += 10
+
         t["score"] = score
 
-    # 千紗APIに渡して、優先度順リストをもらう
+    # 千紗APIに渡す（todo_tasksだけ）
     ordered = chisa_suggest_priority(todo_tasks, state)
-    print("[DEBUG] chisa_result_count=", len(ordered))
+    print("[DEBUG] chisa_result_count=", len(ordered), flush=True)
 
-    
-    # 千紗が失敗したら、スコアで並べる（フォールバック）
+    # フォールバック：スコア順
     if not ordered:
-        print("[情報] 千紗なし：スコアで並べます")
-        # スコアの高い順に並べる
+        print("[情報] 千紗なし：スコアで並べます", flush=True)
         sorted_tasks = sorted(todo_tasks, key=lambda t: t.get("score", 0), reverse=True)
-        # 上位10件に絞る
         top_tasks = sorted_tasks[:10]
-        
+
         results: list[dict[str, Any]] = []
         for t in top_tasks:
             results.append({
@@ -300,8 +341,8 @@ def get_today_recommendation() -> list[dict[str, Any]]:
             })
         return results
 
-    # 千紗が成功した場合の処理（元のまま）
-    tasks_by_id: dict[int, dict[str, Any]] = {t["id"]: t for t in tasks}
+    # 千紗が成功した場合
+    tasks_by_id: dict[int, dict[str, Any]] = {t["id"]: t for t in tasks_all if isinstance(t, dict) and "id" in t}
 
     results: list[dict[str, Any]] = []
     for item in ordered:
@@ -325,6 +366,7 @@ def get_today_recommendation() -> list[dict[str, Any]]:
         })
 
     return results
+
 
 def get_tasks_scored_all() -> list[dict[str, Any]]:
     """

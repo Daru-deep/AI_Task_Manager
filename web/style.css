@@ -847,3 +847,7 @@ html, body {
   opacity: .85;
   word-break: break-word;
 }
+
+#st-ui-note {
+  white-space: pre-wrap;
+}
