@@ -10,24 +10,44 @@ def _task_tags(task: Dict[str, Any]) -> List[str]:
     return [str(t) for t in tags]
 
 
+from typing import Any, Dict, List, Optional
+
+def _as_dict(v: Any) -> Dict[str, Any]:
+    """dict以外が来ても落ちないようにdictへ寄せる"""
+    return v if isinstance(v, dict) else {}
+
+def _as_list(v: Any) -> List[Any]:
+    """list以外が来ても落ちないようにlistへ寄せる（strは1要素扱い）"""
+    if v is None:
+        return []
+    if isinstance(v, list):
+        return v
+    if isinstance(v, tuple):
+        return list(v)
+    if isinstance(v, str):
+        s = v.strip()
+        return [s] if s else []
+    # それ以外（数値/dict等）は無視
+    return []
+
 def adjust_score_by_state(
     score: int,
     task: Dict[str, Any],
     state: Dict[str, Any],
 ) -> int:
-    """今日の状態(meta/constraints/focus_plan)を使ってスコアを少し補正する。
-
-    - 集中力が低い日は「heavy」タグ付きタスクを下げる
-    - 外出できない日は「outside」「shopping」系タグを下げる
-    - prefer_axes / avoid_axes によって、軸に合うタスクを上下させる
-
-    ※あくまで「微調整」であって、タグやpriority_hintで決まった
-      基本スコアを壊さない範囲に抑えている。
-    """
+    """今日の状態(meta/constraints/focus_plan)を使ってスコアを少し補正する。"""
     tags = _task_tags(task)
-    meta = state.get("meta", {}) or {}
-    constraints = state.get("constraints", {}) or {}
-    plan = state.get("focus_plan", {}) or {}
+
+    meta = _as_dict((state or {}).get("meta"))
+    constraints = _as_dict((state or {}).get("constraints"))
+
+    # ★ここが今回の要：focus_planがlistでも落ちない
+    plan_raw = (state or {}).get("focus_plan")
+    plan = _as_dict(plan_raw)
+
+    # prefer_axes / avoid_axes は list に正規化
+    prefer_axes = [str(x) for x in _as_list(plan.get("prefer_axes")) if str(x).strip()]
+    avoid_axes  = [str(x) for x in _as_list(plan.get("avoid_axes")) if str(x).strip()]
 
     bonus = 0
 
@@ -49,11 +69,6 @@ def adjust_score_by_state(
             bonus -= 15
 
     # 3. prefer_axes / avoid_axes をタグ名にざっくり反映
-    #    例: prefer_axes=["work", "study"] のとき、
-    #        "work_portfolio", "study_programming" などを少し上げる
-    prefer_axes = plan.get("prefer_axes") or []
-    avoid_axes = plan.get("avoid_axes") or []
-
     if prefer_axes:
         if any(ax in tag for tag in tags for ax in prefer_axes):
             bonus += 10
@@ -63,3 +78,4 @@ def adjust_score_by_state(
             bonus -= 10
 
     return score + bonus
+

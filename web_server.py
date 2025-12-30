@@ -9,6 +9,7 @@ from storage import load_tasks
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
+import traceback
 print("OPENAI_API_KEY =", "set" if os.getenv("OPENAI_API_KEY") else "none")
 
 
@@ -51,6 +52,7 @@ def api_today():
         return jsonify(recs)   # ★配列を返す（フロント互換）
     except Exception as e:
         print(f"[エラー] 今日のおすすめ取得に失敗: {e}")
+        traceback.print_exc()
         resp = jsonify([])
         resp.status_code = 500
         return resp

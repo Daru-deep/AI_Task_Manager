@@ -225,6 +225,19 @@ def get_today_recommendation() -> list[dict[str, Any]]:
     projects = load_projects()
     tags_master = load_tags_master()
 
+    if isinstance(state, list):
+        state = state[0] if state else {}
+    if not isinstance(state, dict):
+        state = {}
+
+
+    if isinstance(projects, list):
+    # もし projects が [{key:..., ...}] 形式なら変換したいが、
+    # まずは落とさないために空dict扱い
+        projects = {}
+    if not isinstance(projects, dict):
+        projects = {}
+
     todo_tasks: list[dict[str, Any]] = [t for t in tasks_all if t.get("status") == "todo"]
     print("[DEBUG] todo_count=", len(todo_tasks), flush=True)
 
