@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/style.css">
 
   <!-- JSファイルを順番に読み込む（この順番が重要！） -->
+  <script src="/web/template.js" defer></script>
   <script src="/web/chisa.js" defer></script>
   <script src="/web/tasks.js" defer></script>
   <script src="/web/state.js" defer></script>
@@ -89,6 +90,7 @@
           <button id="nav-all" class="vg-tab">全タスク</button>
           <button id="nav-projects" class="vg-tab">プロジェクト</button>
           <button id="nav-import" class="vg-tab">日誌インポート</button>
+          <button id="nav-template" class="vg-tab">テンプレート</button>
         </div>
 
         <!-- ビュー領域 -->
@@ -127,52 +129,97 @@
           <section id="view-state" class="vg-view">
             <div class="vg-head">
               <h2>今日のステータス</h2>
-              <button id="btn-refresh-state" class="vg-btn">更新</button>
-            </div>
-
-            <div class="vg-grid">
-              <div class="vg-card">
-                <div class="vg-card-title">体調</div>
-                <div class="vg-big" id="st-physical">-</div>
-                <div class="vg-sub" id="st-physical-note"></div>
-              </div>
-
-              <div class="vg-card">
-                <div class="vg-card-title">メンタル</div>
-                <div class="vg-big" id="st-mental">-</div>
-                <div class="vg-sub" id="st-mental-note"></div>
-              </div>
-
-              <div class="vg-card">
-                <div class="vg-card-title">集中</div>
-                <div class="vg-big" id="st-focus">-</div>
-                <div class="vg-sub" id="st-focus-note"></div>
-              </div>
-
-              <div class="vg-card">
-                <div class="vg-card-title">今日の制約</div>
-                <ul class="vg-list" id="st-constraints"></ul>
-              </div>
-
-              <div class="vg-card">
-                <div class="vg-card-title">今日やりたいこと</div>
-                <ul class="vg-list" id="st-goals"></ul>
-              </div>
-
-              <div class="vg-card">
-                <div class="vg-card-title">メモ</div>
-                <div class="vg-sub" id="st-ui-note"></div>
-              </div>
-
-
-              <div class="vg-card">
-                <div class="vg-card-title">最終更新</div>
-                <div class="vg-sub" id="st-updated-at">-</div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span id="st-updated-at" style="font-size:11px; color:var(--text-muted);"></span>
+                <button id="btn-refresh-state" class="vg-btn">再読み込み</button>
               </div>
             </div>
 
-            <!-- デバッグ用（普段は非表示でOK） -->
-            <details class="vg-debug">
+            <div class="si-form">
+              <div class="si-row">
+                <label class="si-label">日付</label>
+                <input type="date" id="si-date" class="si-input">
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">体の元気さ</label>
+                <select id="si-physical" class="si-select">
+                  <option value="low">低め</option>
+                  <option value="medium" selected>ふつう</option>
+                  <option value="high">高め</option>
+                </select>
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">頭・気持ちの元気さ</label>
+                <select id="si-mental" class="si-select">
+                  <option value="low">低め</option>
+                  <option value="medium" selected>ふつう</option>
+                  <option value="high">高め</option>
+                </select>
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">集中力 <span id="si-focus-val">3</span>/5</label>
+                <input type="range" id="si-focus" min="0" max="5" value="3" class="si-range">
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">体調スコア <span id="si-health-val">3</span>/5</label>
+                <input type="range" id="si-health" min="0" max="5" value="3" class="si-range">
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">創作意欲</label>
+                <select id="si-creative" class="si-select">
+                  <option value="low">低め</option>
+                  <option value="medium" selected>ふつう</option>
+                  <option value="high">高め</option>
+                </select>
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">金銭プレッシャー</label>
+                <select id="si-money" class="si-select">
+                  <option value="low" selected>低め</option>
+                  <option value="medium">ふつう</option>
+                  <option value="high">高め（収益作業を優先）</option>
+                </select>
+              </div>
+
+              <div class="si-row si-row-check">
+                <label class="si-check-label">
+                  <input type="checkbox" id="si-desk" checked>
+                  机に座って作業できる
+                </label>
+                <label class="si-check-label">
+                  <input type="checkbox" id="si-outside" checked>
+                  外出できる
+                </label>
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">優先したいタグ</label>
+                <input type="text" id="si-prefer" class="si-input" placeholder="例: light, admin（カンマ区切り）">
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">避けたいタグ</label>
+                <input type="text" id="si-avoid" class="si-input" placeholder="例: heavy, coding（カンマ区切り）">
+              </div>
+
+              <div class="si-row">
+                <label class="si-label">今日のメモ</label>
+                <textarea id="si-note" rows="3" class="si-textarea" placeholder="今日の状況を自由に書いてください"></textarea>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:12px; align-items:center;">
+              <button id="btn-save-state" class="vg-primary-btn">保存</button>
+              <span id="st-save-result" style="font-size:13px;"></span>
+            </div>
+
+            <details class="vg-debug" style="margin-top:16px;">
               <summary>raw state.json</summary>
               <pre id="state-raw"></pre>
             </details>
@@ -249,7 +296,62 @@
 
               <div id="import-result" class="vg-import-result"></div>
             </div>
+
+            <hr style="margin: 20px 0; border-color: rgba(255,105,180,0.3);">
+
+            <div class="vg-import-panel" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+              <p style="margin:0;">③ ChatGPT が使えないときは、<strong>今日のステータス</strong>タブから直接入力できます。</p>
+              <button class="vg-btn" onclick="document.getElementById('nav-state').click()" style="white-space:nowrap;">
+                ステータスを入力する →
+              </button>
+            </div>
           </section>
+          <!-- テンプレート -->
+          <section id="view-template" class="vg-view">
+            <div class="vg-view-header">
+              <h1>テンプレート・プロンプト集</h1>
+            </div>
+
+            <!-- 日誌JSONテンプレート -->
+            <div class="tpl-section">
+              <div class="tpl-section-header">
+                <div>
+                  <div class="tpl-section-title">📄 日誌 JSON テンプレート</div>
+                  <div class="tpl-section-desc">ChatGPT に出力させる日誌の形式です。インポートタブから読み込めます。</div>
+                </div>
+                <div class="tpl-btn-group">
+                  <button id="btn-copy-template" class="vg-btn tpl-btn">コピー</button>
+                  <button id="btn-download-template" class="vg-btn tpl-btn">ダウンロード</button>
+                </div>
+              </div>
+              <pre id="tpl-json-content" class="tpl-code"></pre>
+            </div>
+
+            <!-- システムプロンプト -->
+            <div class="tpl-section">
+              <div class="tpl-section-header">
+                <div>
+                  <div class="tpl-section-title">🤖 ChatGPT システムプロンプト</div>
+                  <div class="tpl-section-desc">ChatGPT の「システムプロンプト」欄に貼り付けると、日誌を正しい形式で出力してくれます。</div>
+                </div>
+                <button id="btn-copy-system" class="vg-btn tpl-btn">コピー</button>
+              </div>
+              <pre id="tpl-system-prompt-content" class="tpl-code"></pre>
+            </div>
+
+            <!-- ユーザー入力例 -->
+            <div class="tpl-section">
+              <div class="tpl-section-header">
+                <div>
+                  <div class="tpl-section-title">💬 ユーザー入力例</div>
+                  <div class="tpl-section-desc">システムプロンプトを設定した後、このように話しかけると日誌 JSON が出力されます。</div>
+                </div>
+                <button id="btn-copy-user" class="vg-btn tpl-btn">コピー</button>
+              </div>
+              <pre id="tpl-user-example-content" class="tpl-code"></pre>
+            </div>
+          </section>
+
         </div>
       </section>
     </main>

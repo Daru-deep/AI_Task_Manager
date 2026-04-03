@@ -1,248 +1,219 @@
 // ========================================
-// state.js - 今日の状態表示
-// ========================================
-// このファイルの役割：
-// - サーバーから state.json を取得
-// - 体調・メンタル・集中力を表示
-// - 制約条件・今日の目標を表示
+// state.js - 今日のステータス（表示 + 編集）
 // ========================================
 
 /**
- * サーバーから state.json を取得して表示
+ * サーバーから state を取得してフォームに反映する
  */
 async function loadState() {
   try {
-    const response = await fetch("/api/state");
-    const body = await response.json();
+    const res  = await fetch("/api/state");
+    const body = await res.json();
 
-    // エラーチェック
-    if (!body.success) {
-      showStateError(body.error || "不明なエラー");
+    // X-Error-Code が E_STATE_EMPTY なら「未登録」扱い
+    const errCode = res.headers?.get?.("X-Error-Code");
+    if (errCode === "E_STATE_EMPTY" || !body.success) {
+      _fillFormDefaults();
+      _setUpdatedAt("未登録");
       return;
     }
 
-    // state データを画面に表示
-    displayState(body.data || {});
-    
-  } catch (error) {
-    console.error("状態取得エラー:", error);
-    showStateError("サーバーとの通信に失敗しました");
+    const state = body.data || {};
+    _fillFormFromState(state);
+
+    // デバッグ用
+    const raw = document.getElementById("state-raw");
+    if (raw) raw.textContent = JSON.stringify(state, null, 2);
+
+  } catch (err) {
+    console.error("state 取得エラー:", err);
+    _setUpdatedAt("取得失敗");
   }
 }
 
-/**
- * エラーメッセージを表示
- * @param {string} errorMessage - エラーメッセージ
- */
-function showStateError(errorMessage) {
-  setText("st-physical", "取得失敗");
-  setText("st-mental", "");
-  setText("st-focus", "");
-  setList("st-constraints", [errorMessage]);
-  setList("st-goals", []);
+// ── フォームにデータを流し込む ──────────────────────
+
+function _fillFormFromState(s) {
+  const meta        = s?.meta        ?? {};
+  const constraints = s?.constraints ?? {};
+  const focus_plan  = s?.focus_plan  ?? {};
+
+  _setDate(s?.date);
+  _setSelect("si-physical", s?.physical_energy ?? "medium");
+  _setSelect("si-mental",   s?.mental_energy   ?? "medium");
+  _setSelect("si-creative", s?.creative_drive  ?? "medium");
+  _setSelect("si-money",    s?.money_pressure_creative ?? "low");
+
+  _setRange("si-focus",  "si-focus-val",  meta?.focus_level  ?? 3);
+  _setRange("si-health", "si-health-val", meta?.health_score ?? 3);
+
+  _setCheck("si-desk",    s?.can_sit_at_desk ?? true);
+  _setCheck("si-outside", s?.can_go_outside  ?? constraints?.can_go_out ?? true);
+
+  _setText("si-prefer", (focus_plan?.prefer_axes ?? []).join(", "));
+  _setText("si-avoid",  (focus_plan?.avoid_axes  ?? []).join(", "));
+  _setText("si-note",   s?.free_note ?? "");
+
+  // 最終更新
+  const last = s?.last_imported_at;
+  _setUpdatedAt(last ? `最終保存: ${_formatAgo(new Date(last))}` : "");
 }
 
-/**
- * state データを画面に表示
- * @param {Object} state - state.json のデータ
- */
-function displayState(state) {
-  // state から必要なデータを取り出す
-  const view = extractStateView(state);
-
-  // 体調・メンタル・集中力を表示
-  setText("st-physical", formatScore(view.physical));
-  setText("st-mental", formatScore(view.mental));
-  setText("st-focus", formatScore(view.focusLevel));
-
-  // 補足説明を表示
-  setText("st-physical-note", view.physicalNote || "");
-  setText("st-mental-note", view.mentalNote || "");
-  setText("st-focus-note", view.focusNote || "");
-
-  // ★ UI用メモ（free_noteではなく、ui.note）
-  setText("st-ui-note", view.uiNote || "");
-
-
-
-  // 制約条件と目標をリスト表示
-  setList("st-constraints", view.constraintsList);
-  setList("st-goals", view.goalsList);
-
-  // 最終インポート日時を表示
-  const lastImported = state?.last_imported_at;
-  if (lastImported) {
-    const importedDate = new Date(lastImported);
-    const formatted = formatDateTime(importedDate);
-    setText("st-updated-at", `${view.updatedAt || "-"}（最終インポート: ${formatted}）`);
-  } else {
-    setText("st-updated-at", view.updatedAt || "-");
-  }
-
-  // デバッグ用：生のJSONを表示
-  const raw = document.getElementById("state-raw");
-  if (raw) raw.textContent = JSON.stringify(state, null, 2);
+function _fillFormDefaults() {
+  _setDate(null);
+  _setSelect("si-physical", "medium");
+  _setSelect("si-mental",   "medium");
+  _setSelect("si-creative", "medium");
+  _setSelect("si-money",    "low");
+  _setRange("si-focus",  "si-focus-val",  3);
+  _setRange("si-health", "si-health-val", 3);
+  _setCheck("si-desk",    true);
+  _setCheck("si-outside", true);
+  _setText("si-prefer", "");
+  _setText("si-avoid",  "");
+  _setText("si-note",   "");
 }
 
-/**
- * 日時を見やすい形式に変換
- * @param {Date} date - 日時オブジェクト
- * @returns {string} 表示用の文字列
- */
-function formatDateTime(date) {
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  
-  if (diffMinutes < 1) return "たった今";
-  if (diffMinutes < 60) return `${diffMinutes}分前`;
-  
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}時間前`;
-  
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}日前`;
-  
-  // 7日以上前なら具体的な日時
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hour = String(date.getHours()).padStart(2, "0");
-  const minute = String(date.getMinutes()).padStart(2, "0");
-  
-  return `${year}-${month}-${day} ${hour}:${minute}`;
-}
+// ── 保存処理 ────────────────────────────────────────
 
+async function saveState() {
+  const resultEl = document.getElementById("st-save-result");
 
-/**
- * state データから表示用の情報を取り出す
- * （プロジェクトによってJSONの構造が違うことがあるので、柔軟に対応）
- * @param {Object} state - state.json のデータ
- * @returns {Object} 表示用のデータ
- */
-function extractStateView(state) {
-  const meta = state?.meta ?? {};
-  const constraints = state?.constraints ?? {};
-  const focus = state?.focus_plan ?? {};
-
-  // 体調・メンタル・集中力（色々な名前のキーに対応）
-  const physical =
-    meta.health_score
-    ?? meta.physical_energy ?? meta.physical ?? meta.body ?? meta.health ?? null;
-
-  const mental = meta.mental_energy ?? meta.mental ?? meta.mood ?? null;
-  const focusLevel = meta.focus_level ?? meta.focus ?? meta.concentration ?? null;
-
-  // 補足説明
-  const physicalNote = meta.physical_note ?? meta.health_note ?? "";
-  const mentalNote = meta.mental_note ?? meta.mood_note ?? "";
-  const focusNote = meta.focus_note ?? "";
-
-  // 制約条件をリストに変換
-  const constraintsList = [];
-  for (const [key, value] of Object.entries(constraints)) {
-    if (typeof value === "boolean") {
-      constraintsList.push(`${key}: ${value ? "OK" : "NG"}`);
-    } else if (value != null && value !== "") {
-      constraintsList.push(`${key}: ${value}`);
-    }
+  const date    = document.getElementById("si-date")?.value;
+  if (!date) {
+    _showResult(resultEl, "日付を入力してください", false);
+    return;
   }
 
-  // 今日の目標をリストに変換
-  const goalsList = [];
-  for (const [key, value] of Object.entries(focus)) {
-    if (Array.isArray(value)) {
-      value.forEach(item => goalsList.push(`${key}: ${item}`));
-    } else if (value != null && value !== "") {
-      goalsList.push(`${key}: ${value}`);
-    }
-  }
+  const splitAxes = id =>
+    (document.getElementById(id)?.value ?? "")
+      .split(",").map(s => s.trim()).filter(Boolean);
 
-  // UI用メモ（統一形 ui.note を優先、互換キーも読む）
-  const uiNoteRaw =
-    state?.ui?.note
-    ?? state?.ui_note
-    ?? state?.diary?.ui_note
-    ?? "";
-
-  const uiNote = String(uiNoteRaw ?? "").trim();
-
-  // 旧データ互換：uiNoteが無い場合だけ free_note の先頭を短く
-  const fallback = String(state?.free_note ?? "").trim();
-  const uiNoteFinal =
-    uiNote
-      ? uiNote
-      : (fallback ? fallback.slice(0, 140) + (fallback.length > 140 ? "…" : "") : "");
-
-  // 更新日時
-  const updatedAt = state?.date ?? meta?.date ?? meta?.updated_at ?? "";
-
-  return {
-    physical,
-    mental,
-    focusLevel,
-    physicalNote,
-    mentalNote,
-    focusNote,
-    constraintsList,
-    goalsList,
-    updatedAt,
-    uiNote: uiNoteFinal,
+  const stateData = {
+    date,
+    physical_energy:         document.getElementById("si-physical")?.value ?? "medium",
+    mental_energy:           document.getElementById("si-mental")?.value   ?? "medium",
+    can_sit_at_desk:         document.getElementById("si-desk")?.checked   ?? true,
+    can_go_outside:          document.getElementById("si-outside")?.checked ?? true,
+    creative_drive:          document.getElementById("si-creative")?.value ?? "medium",
+    money_pressure_creative: document.getElementById("si-money")?.value    ?? "low",
+    study_deadline_days:     999,
+    meta: {
+      focus_level:  Number(document.getElementById("si-focus")?.value  ?? 3),
+      health_score: Number(document.getElementById("si-health")?.value ?? 3),
+      mood_summary: (document.getElementById("si-note")?.value ?? "").slice(0, 80) || "手動入力",
+    },
+    constraints: {
+      can_go_out: document.getElementById("si-outside")?.checked ?? true,
+    },
+    focus_plan: {
+      prefer_axes: splitAxes("si-prefer"),
+      avoid_axes:  splitAxes("si-avoid"),
+    },
+    free_note: document.getElementById("si-note")?.value ?? "",
+    new_tasks: [],
   };
-}
 
+  try {
+    const res    = await fetch("/api/import_state", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(stateData),
+    });
+    const result = await res.json().catch(() => ({}));
 
-/**
- * スコアを見やすい形式に変換
- * @param {any} value - スコアの値
- * @returns {string} 表示用の文字列
- */
-function formatScore(value) {
-  if (value == null || value === "") return "-";
-  
-  // 数値なら「X/10」形式で表示
-  const num = Number(value);
-  if (!isNaN(num)) {
-    return `${num}/10`;
-  }
-  
-  // 数値じゃなければそのまま表示
-  return value.toString();
-}
+    if (!res.ok || !result.success) {
+      _showResult(resultEl, "保存に失敗しました", false);
+      return;
+    }
 
-/**
- * 指定したIDの要素にテキストを設定
- * @param {string} id - 要素のID
- * @param {string} text - 設定するテキスト
- */
-function setText(id, text) {
-  const element = document.getElementById(id);
-  if (element) {
-    element.textContent = (text ?? "").toString();
+    _showResult(resultEl, "保存しました！", true);
+    _setUpdatedAt(`最終保存: たった今`);
+
+    // タスクリストを更新
+    await loadTodaySafe(true);
+    chisaSayFromKey?.("on_import_success", 3000);
+
+  } catch (err) {
+    console.error("state 保存エラー:", err);
+    _showResult(resultEl, "サーバーとの通信に失敗しました", false);
   }
 }
 
-/**
- * 指定したIDのリスト要素（ul）にアイテムを追加
- * @param {string} id - ul要素のID
- * @param {Array} items - リストアイテムの配列
- */
-function setList(id, items) {
-  const ul = document.getElementById(id);
-  if (!ul) return;
+// ── イベント設定 ─────────────────────────────────────
 
-  // リストを空にする
-  ul.innerHTML = "";
+document.addEventListener("DOMContentLoaded", () => {
+  // 保存ボタン
+  document.getElementById("btn-save-state")
+    ?.addEventListener("click", saveState);
 
-  if (!items) return;
+  // 再読み込みボタン
+  document.getElementById("btn-refresh-state")
+    ?.addEventListener("click", loadState);
 
-  // 配列でなければ配列にする
-  const array = Array.isArray(items) ? items : [items];
-  
-  // 各アイテムを li 要素として追加
-  array.filter(Boolean).forEach(item => {
-    const li = document.createElement("li");
-    li.textContent = item.toString();
-    ul.appendChild(li);
-  });
+  // スライダーのリアルタイム表示
+  document.getElementById("si-focus")
+    ?.addEventListener("input", e => _setRangeLabel("si-focus-val", e.target.value));
+  document.getElementById("si-health")
+    ?.addEventListener("input", e => _setRangeLabel("si-health-val", e.target.value));
+});
+
+// ── ヘルパー ─────────────────────────────────────────
+
+function _setDate(dateStr) {
+  const el = document.getElementById("si-date");
+  if (!el) return;
+  if (dateStr) {
+    el.value = dateStr;
+  } else {
+    const t = new Date();
+    el.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  }
+}
+
+function _setSelect(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function _setRange(id, labelId, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+  _setRangeLabel(labelId, val);
+}
+
+function _setRangeLabel(labelId, val) {
+  const el = document.getElementById(labelId);
+  if (el) el.textContent = val;
+}
+
+function _setCheck(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.checked = !!val;
+}
+
+function _setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val ?? "";
+}
+
+function _setUpdatedAt(text) {
+  const el = document.getElementById("st-updated-at");
+  if (el) el.textContent = text;
+}
+
+function _showResult(el, msg, ok) {
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? "#8ed78e" : "#ff6b6b";
+  if (ok) setTimeout(() => { el.textContent = ""; }, 3000);
+}
+
+function _formatAgo(date) {
+  const diff = Math.floor((Date.now() - date) / 60000);
+  if (diff < 1)  return "たった今";
+  if (diff < 60) return `${diff}分前`;
+  const h = Math.floor(diff / 60);
+  if (h < 24)    return `${h}時間前`;
+  return `${Math.floor(h/24)}日前`;
 }

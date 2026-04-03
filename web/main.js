@@ -105,6 +105,14 @@ function setupTabButtons() {
     });
   }
 
+  // テンプレートタブ
+  const navTemplate = document.getElementById("nav-template");
+  if (navTemplate) {
+    navTemplate.addEventListener("click", () => {
+      activateView("view-template", "nav-template");
+    });
+  }
+
   // 状態更新ボタン
   const refreshBtn = document.getElementById("btn-refresh-state");
   if (refreshBtn) {
